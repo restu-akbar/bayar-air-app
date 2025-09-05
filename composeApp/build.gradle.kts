@@ -36,12 +36,21 @@ kotlin {
         commonMain.dependencies {
             implementation(compose.runtime)
             implementation(compose.foundation)
-            implementation(compose.material3)
+            implementation(compose.material)
             implementation(compose.ui)
             implementation(compose.components.resources)
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+
+            // Material 3
+            implementation(compose.material3)
+
+            // Navigation
+            implementation(libs.navigation.compose)
+
+            // window-size (experiment windows app)
+            implementation(libs.screen.size)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
