@@ -1,6 +1,6 @@
 # Gunakan gradlew wrapper
 GRADLEW := ./gradlew
-
+PKG ?= org.com.bayarair
 .PHONY: build clean test run
 
 tasks:
@@ -20,3 +20,7 @@ test:
 
 run:
 	$(GRADLEW) bootRun
+
+
+logdroid:
+	adb logcat -v color -s $(PKG)

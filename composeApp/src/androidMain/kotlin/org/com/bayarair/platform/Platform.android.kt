@@ -1,4 +1,4 @@
-package org.com.bayarair
+package org.com.bayarair.platform
 
 import android.os.Build
 
@@ -7,3 +7,4 @@ class AndroidPlatform : Platform {
 }
 
 actual fun getPlatform(): Platform = AndroidPlatform()
+
