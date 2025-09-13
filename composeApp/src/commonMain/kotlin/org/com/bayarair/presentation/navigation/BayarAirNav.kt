@@ -14,6 +14,6 @@ fun BayarAirNav() {
     NavHost(navController = nav, startDestination = Routes.Splash) {
         composable(Routes.Splash) { SplashScreen(nav) }
         composable(Routes.Login)  { LoginScreen(nav) }
-        composable(Routes.Home)   { HomeScreen() } 
+        composable(Routes.Home)   { HomeScreen(nav) } 
     }
 }

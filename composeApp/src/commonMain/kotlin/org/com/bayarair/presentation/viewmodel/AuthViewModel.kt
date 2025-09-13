@@ -8,19 +8,19 @@ import kotlinx.coroutines.launch
 import org.com.bayarair.data.repository.AuthRepository
 import org.com.bayarair.data.token.TokenHandler
 
-sealed interface LoginState {
-    data object Idle : LoginState
+sealed interface AuthState {
+    data object Idle : AuthState
 
-    data object Loading : LoginState
+    data object Loading : AuthState
 
     data class Error(
         val message: String,
-    ) : LoginState
+    ) : AuthState
 
-    data object Success : LoginState
+    data object Success : AuthState
 }
 
-class LoginViewModel(
+class AuthViewModel(
     private val authRepository: AuthRepository,
     private val tokenStore: TokenHandler,
 ) : ViewModel() {
@@ -30,8 +30,8 @@ class LoginViewModel(
     private val _password = MutableStateFlow("")
     val password: StateFlow<String> = _password
 
-    private val _state = MutableStateFlow<LoginState>(LoginState.Idle)
-    val state: StateFlow<LoginState> = _state
+    private val _state = MutableStateFlow<AuthState>(AuthState.Idle)
+    val state: StateFlow<AuthState> = _state
 
     fun onLoginChange(v: String) {
         _login.value = v
@@ -42,20 +42,22 @@ class LoginViewModel(
     }
 
     fun onLoginClick() {
-        if (_state.value == LoginState.Loading) return
-        _state.value = LoginState.Loading
+        if (_state.value == AuthState.Loading) return
+        _state.value = AuthState.Loading
 
         viewModelScope.launch {
-            val u = _login.value.trim()
+            val l = _login.value.trim()
             val p = _password.value
 
-            val result = authRepository.login(u, p)
+            println("AuthViewModel Login: $l, Password: $p")
+            val result = authRepository.login(l, p)
             result
                 .onSuccess { token ->
                     tokenStore.setToken(token)
-                    _state.value = LoginState.Success
+                    _state.value = AuthState.Success
                 }.onFailure { e ->
-                    _state.value = LoginState.Error(e.message ?: "Login gagal")
+                    _password.value = ""
+                    _state.value = AuthState.Error(e.message ?: "Login gagal")
                 }
         }
     }

@@ -30,6 +30,7 @@ kotlin {
                 implementation(compose.components.resources)
                 implementation(compose.components.uiToolingPreview)
                 implementation(compose.material3)
+                implementation(compose.materialIconsExtended)
                 implementation(libs.jetbrains.compose.navigation)
                 implementation(libs.kotlinx.serialization.json)
                 implementation(libs.koin.compose)
@@ -66,6 +67,11 @@ kotlin {
             dependencies { implementation(libs.kotlin.test) }
         }
     }
+}
+
+compose.resources {
+    publicResClass = true
+    packageOfResClass = "org.com.bayarair"
 }
 
 room {
