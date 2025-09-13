@@ -1,11 +1,10 @@
 package org.com.bayarair.presentation.viewmodel
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import cafe.adriel.voyager.core.model.ScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import org.com.bayarair.data.repository.AuthRepository
 import org.com.bayarair.data.token.TokenHandler
 
 sealed interface SplashState {
@@ -18,23 +17,14 @@ sealed interface SplashState {
 
 class SplashViewModel(
     private val tokenStore: TokenHandler,
-    private val authRepository: AuthRepository,
-) : ViewModel() {
+) : ScreenModel {
     private val _state = MutableStateFlow<SplashState>(SplashState.Loading)
     val state: StateFlow<SplashState> = _state
 
     init {
-        checkToken()
-    }
-
-    private fun checkToken() {
-        viewModelScope.launch {
+        screenModelScope.launch {
             val token = tokenStore.getToken()
-            if (token.isNullOrBlank()) {
-                _state.value = SplashState.GoLogin
-                return@launch
-            }
-            _state.value = SplashState.GoHome
+            _state.value = if (token.isNullOrBlank()) SplashState.GoLogin else SplashState.GoHome
         }
     }
 }

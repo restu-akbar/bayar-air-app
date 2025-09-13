@@ -1,34 +1,39 @@
 package org.com.bayarair.presentation.viewmodel
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import cafe.adriel.voyager.core.model.ScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import org.com.bayarair.data.repository.AuthRepository
 import org.com.bayarair.data.token.TokenHandler
 
 class HomeViewModel(
     private val tokenHandler: TokenHandler,
-    private val authRepository: AuthRepository,
-) : ViewModel() {
-    fun logout(
-        onFinally: () -> Unit,
-        onError: (String) -> Unit = {},
-    ) {
-        viewModelScope.launch {
+    private val authRepo: AuthRepository,
+) : ScreenModel {
+    private val _onErrorMessage = MutableSharedFlow<String>()
+    val onErrorMessage: SharedFlow<String> = _onErrorMessage
+
+    private val _onLoggedOut = MutableSharedFlow<Boolean>()
+    val onLoggedOut: SharedFlow<Boolean> = _onLoggedOut
+
+    fun logout() {
+        screenModelScope.launch {
             val token = tokenHandler.getToken()
             val result =
-                if (token != null) {
-                    authRepository.logout(token)
+                if (token.isNullOrBlank()) {
+                    Result.failure(IllegalStateException("Token kosong"))
                 } else {
-                    Result.success(Unit)
+                    runCatching { authRepo.logout(token) }
                 }
 
-            result.onFailure { e ->
-                onError(e.message ?: "Gagal logout")
-            }
+            runCatching { tokenHandler.clear() }
 
-            tokenHandler.clear()
-            onFinally()
+            result.onFailure { e ->
+                _onErrorMessage.emit(e.message ?: "Logout gagal")
+            }
+            _onLoggedOut.emit(true)
         }
     }
 }

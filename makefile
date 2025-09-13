@@ -12,6 +12,9 @@ build:
 install:
 	$(GRADLEW) installDebug 
 
+apk:
+	$(GRADLEW) assembleDebug 
+
 clean:
 	$(GRADLEW) clean
 
@@ -20,7 +23,6 @@ test:
 
 run:
 	$(GRADLEW) bootRun
-
 
 logdroid:
 	adb logcat -v color -s $(PKG)

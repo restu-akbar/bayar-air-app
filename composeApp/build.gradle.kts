@@ -36,9 +36,14 @@ kotlin {
                 implementation(libs.koin.compose)
                 implementation(libs.androidx.lifecycle.viewmodel)
                 implementation(libs.androidx.lifecycle.runtime.compose)
-                api(libs.koin.core)
+                implementation(libs.koin.core)
                 implementation(libs.bundles.ktor)
                 implementation(libs.bundles.coil)
+                implementation(libs.navigator)
+                implementation(libs.navigator.tabs)
+                implementation(libs.navigator.transitions)
+                implementation(libs.navigator.viewmodel)
+                implementation(libs.navigator.koin)
             }
         }
         val androidMain by getting {

@@ -1,55 +1,51 @@
 package org.com.bayarair.presentation.screens
 
-import org.com.bayarair.data.token.TokenHandler
-import org.com.bayarair.data.repository.AuthRepository
-import org.com.bayarair.presentation.viewmodel.HomeViewModel
-import org.com.bayarair.presentation.navigation.Routes
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext // << ini context-nya
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import org.koin.compose.koinInject
-import android.widget.Toast // << untuk Toast
+import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.koin.koinScreenModel
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import kotlinx.coroutines.flow.collectLatest
+import org.com.bayarair.presentation.viewmodel.HomeViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HomeScreen(nav: NavController) {
-    val authRepo: AuthRepository = koinInject()
-    val tokenHandler: TokenHandler = koinInject()
-    val vm = remember { HomeViewModel(tokenHandler, authRepo) }
-    val context = LocalContext.current
+object HomeScreen : Screen {
+    @OptIn(ExperimentalMaterial3Api::class)
+    @Composable
+    override fun Content() {
+        val navigator = LocalNavigator.currentOrThrow
+        val vm: HomeViewModel = koinScreenModel()
+        val snackbarHost = remember { SnackbarHostState() }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Home") }) }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Hello from Compose Multiplatform 👋")
-                Spacer(Modifier.height(16.dp))
-                Button(onClick = {
-                    vm.logout(
-                        onFinally = {
-                            nav.navigate(Routes.Login) {
-                                popUpTo(nav.graph.id) { inclusive = true }
-                                launchSingleTop = true
-                            }
-                        },
-                        onError = { msg ->
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }) {
-                    Text("Logout")
+        LaunchedEffect(Unit) {
+            vm.onErrorMessage.collectLatest { msg ->
+                snackbarHost.showSnackbar(msg)
+            }
+        }
+        val rootNavigator = remember(navigator) {
+            generateSequence(navigator) { it.parent }.last()
+        }
+        LaunchedEffect(Unit) {
+            vm.onLoggedOut.collectLatest { ok ->
+                if (ok) rootNavigator.replaceAll(LoginScreen)
+            }
+        }
+
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHost) }
+        ) { padding ->
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Hello from Compose Multiplatform 👋")
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { vm.logout() }) { Text("Logout") }
                 }
             }
         }

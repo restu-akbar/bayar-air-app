@@ -1,7 +1,7 @@
-package org.com.bayarair.presentation.screens
+package org.com.bayarair.presentation.viewmodel
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import cafe.adriel.voyager.core.model.ScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -21,9 +21,9 @@ sealed interface AuthState {
 }
 
 class AuthViewModel(
-    private val authRepository: AuthRepository,
     private val tokenStore: TokenHandler,
-) : ViewModel() {
+    private val authRepository: AuthRepository,
+) : ScreenModel {
     private val _login = MutableStateFlow("")
     val login: StateFlow<String> = _login
 
@@ -45,11 +45,10 @@ class AuthViewModel(
         if (_state.value == AuthState.Loading) return
         _state.value = AuthState.Loading
 
-        viewModelScope.launch {
+        screenModelScope.launch {
             val l = _login.value.trim()
             val p = _password.value
 
-            println("AuthViewModel Login: $l, Password: $p")
             val result = authRepository.login(l, p)
             result
                 .onSuccess { token ->
