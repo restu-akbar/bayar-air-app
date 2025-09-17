@@ -32,7 +32,7 @@ object HomeScreen : Screen {
             authVm.events.collectLatest { ev ->
                 when (ev) {
                     is AuthEvent.LogoutError -> snackbarHost.showSnackbar(ev.message)
-                    AuthEvent.LoggedOut      -> rootNavigator.replaceAll(LoginScreen)
+                    AuthEvent.LoggedOut -> rootNavigator.replaceAll(LoginScreen)
                 }
             }
         }

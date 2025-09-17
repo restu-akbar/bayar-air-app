@@ -7,14 +7,20 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import io.ktor.client.plugins.HttpResponseValidator
+import io.ktor.client.statement.*
+import io.ktor.http.*
 
-// suspend supaya bisa ambil token dari DataStore/Room, dll.
 typealias TokenProvider = suspend () -> String?
 
 fun installCommonPlugins(
     client: HttpClient,
     tokenProvider: TokenProvider = { null },
     shouldAttach: (String) -> Boolean = { path -> !path.contains("/login") },
+    onUnauthorized: suspend () -> Unit = {},
 ) = client.config {
     expectSuccess = false
 
@@ -39,6 +45,16 @@ fun installCommonPlugins(
             sendWithoutRequest { request ->
                 val path = "/" + request.url.pathSegments.joinToString("/")
                 shouldAttach(path.lowercase())
+            }
+        }
+    }
+
+    HttpResponseValidator {
+        validateResponse { response ->
+            if (response.status == HttpStatusCode.Unauthorized) {
+                CoroutineScope(Dispatchers.Default).launch {
+                    onUnauthorized()
+                }
             }
         }
     }

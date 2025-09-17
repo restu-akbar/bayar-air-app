@@ -10,9 +10,9 @@ import org.com.bayarair.data.dto.unwrapFlexible
 import kotlinx.serialization.json.JsonObject
 
 class AuthRepository(private val client: HttpClient) {
-    // POST /api/login -> { status, message, data: { user, token } }
+    // POST /login -> { status, message, data: { user, token } }
     suspend fun login(login: String, password: String): Result<String> = runCatching {
-        val res = client.post("$BASE_URL/api/login") {
+        val res = client.post("$BASE_URL/login") {
             contentType(ContentType.Application.Json)
             setBody(LoginRequest(login, password))
         }
@@ -20,9 +20,9 @@ class AuthRepository(private val client: HttpClient) {
         res.unwrapFlexible<LoginResponse>().token
     }
 
-    // POST /api/logout -> { status, message, data: NULL }
+    // POST /logout -> { status, message, data: NULL }
     suspend fun logout(token: String): Result<Unit> = runCatching {
-        val res = client.post("$BASE_URL/api/logout")
+        val res = client.post("$BASE_URL/logout")
         if (!res.status.isSuccess()) {
             throw IllegalStateException("Logout failed with status ${res.status}")
         }

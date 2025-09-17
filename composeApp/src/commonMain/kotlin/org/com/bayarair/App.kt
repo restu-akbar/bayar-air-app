@@ -4,10 +4,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import org.com.bayarair.presentation.navigation.BayarAirNav
 import org.com.bayarair.presentation.theme.BayarAirTheme
+import org.com.bayarair.core.AppEvents
+
 
 @Composable
-fun App() {
+fun App(appEvents: AppEvents) {
     BayarAirTheme {
-        BayarAirNav()
+        BayarAirNav(appEvents)
     }
 }

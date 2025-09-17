@@ -1,11 +1,12 @@
 package org.com.bayarair.presentation.navigation
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
@@ -13,10 +14,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.*
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -35,10 +32,12 @@ import cafe.adriel.voyager.navigator.tab.CurrentTab
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 
+// Pastikan HomeTab, RecordTab, ProfileTab ada di project kamu.
 object TabContainer : Screen {
     @Composable
     override fun Content() {
-        TabNavigator(HomeTab) { tabNavigator ->
+        TabNavigator(RecordTab) { tabNavigator ->
+
             val behavior = rememberBottomBarScrollBehavior()
 
             Scaffold(
@@ -48,103 +47,115 @@ object TabContainer : Screen {
                         enter = slideInVertically { it } + fadeIn(),
                         exit = slideOutVertically { it } + fadeOut()
                     ) {
-                        Box(Modifier.padding(horizontal = 25.dp, vertical = 25.dp)) {
-                            val shape = RoundedCornerShape(18.dp)
+                        // ====== NAVBAR OVAL CUSTOM + TOMBOL TENGAH MENONJOL ======
+                        Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp)) {
+                            val barShape = RoundedCornerShape(18.dp)
+                            val barHeight = 88.dp          // lebih tinggi supaya “menampung” tombol
+                            val middleBtnSize = 68.dp      // ukuran tombol bulat tengah
+                            val middleBtnOffset = -(middleBtnSize / 2) // menonjol setengah
+
+                            // Kartu oval sebagai background bar
                             Surface(
-                                shape = shape,
+                                shape = barShape,
                                 color = MaterialTheme.colorScheme.primaryContainer,
                                 tonalElevation = 6.dp,
-                                shadowElevation = 8.dp
+                                shadowElevation = 10.dp,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .height(barHeight)
                             ) {
-                                Box(Modifier.clip(shape)) {
-                                    NavigationBar(
-                                        containerColor = Color.Transparent,
-                                        contentColor = MaterialTheme.colorScheme.onSurface,
-                                        tonalElevation = 0.dp,
-                                        windowInsets = WindowInsets(0, 0, 0, 0)
-                                    ) {
-                                        run {
-                                            val selected = tabNavigator.current.key == HomeTab.key
-                                            NavigationBarItem(
-                                                selected = selected,
-                                                onClick = { tabNavigator.current = HomeTab },
-                                                icon = {
-                                                    Icon(
-                                                        imageVector = if (selected) Icons.Filled.Home else Icons.Outlined.Home,
-                                                        contentDescription = HomeTab.options.title,
-                                                        tint = if (selected) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
-                                                    )
-                                                },
-                                                label = { Text(HomeTab.options.title) },
-                                                alwaysShowLabel = true,
-                                                colors = NavigationBarItemDefaults.colors(
-                                                    indicatorColor = Color.Transparent,
-                                                    selectedIconColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                                    unselectedIconColor = Color.White,
-                                                    selectedTextColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                                    unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                // NavigationBar transparan di atas kartu (biar label/icon rapi)
+                                NavigationBar(
+                                    containerColor = Color.Transparent,
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
+                                    tonalElevation = 0.dp
+                                    // Biarkan insets default (JANGAN set WindowInsets(0,0,0,0))
+                                ) {
+                                    // Home
+                                    run {
+                                        val selected = tabNavigator.current.key == HomeTab.key
+                                        NavigationBarItem(
+                                            selected = selected,
+                                            onClick = { tabNavigator.current = HomeTab },
+                                            icon = {
+                                                Icon(
+                                                    imageVector = if (selected) Icons.Filled.Home else Icons.Outlined.Home,
+                                                    contentDescription = HomeTab.options.title,
+                                                    tint = if (selected)
+                                                        MaterialTheme.colorScheme.tertiaryContainer
+                                                    else
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
                                                 )
+                                            },
+                                            label = { Text(HomeTab.options.title) },
+                                            alwaysShowLabel = true,
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = Color.Transparent,
+                                                selectedIconColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                selectedTextColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
                                             )
-                                        }
+                                        )
+                                    }
 
-                                        Spacer(Modifier.weight(0.5f))
+                                    Spacer(Modifier.weight(1f))
 
-                                        run {
-                                            val selected = tabNavigator.current.key == ProfileTab.key
-                                            NavigationBarItem(
-                                                selected = selected,
-                                                onClick = { tabNavigator.current = ProfileTab },
-                                                icon = {
-                                                    Icon(
-                                                        imageVector = if (selected) Icons.Filled.Person else Icons.Outlined.Person,
-                                                        contentDescription = ProfileTab.options.title,
-                                                        tint = if (selected) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.onPrimaryContainer
-                                                    )
-                                                },
-                                                label = { Text(ProfileTab.options.title) },
-                                                alwaysShowLabel = true,
-                                                colors = NavigationBarItemDefaults.colors(
-                                                    indicatorColor = Color.Transparent,
-                                                    selectedIconColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                                    unselectedIconColor = Color.White,
-                                                    selectedTextColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                                    unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    // Profile
+                                    run {
+                                        val selected = tabNavigator.current.key == ProfileTab.key
+                                        NavigationBarItem(
+                                            selected = selected,
+                                            onClick = { tabNavigator.current = ProfileTab },
+                                            icon = {
+                                                Icon(
+                                                    imageVector = if (selected) Icons.Filled.Person else Icons.Outlined.Person,
+                                                    contentDescription = ProfileTab.options.title,
+                                                    tint = if (selected)
+                                                        MaterialTheme.colorScheme.tertiaryContainer
+                                                    else
+                                                        MaterialTheme.colorScheme.onPrimaryContainer
                                                 )
+                                            },
+                                            label = { Text(ProfileTab.options.title) },
+                                            alwaysShowLabel = true,
+                                            colors = NavigationBarItemDefaults.colors(
+                                                indicatorColor = Color.Transparent,
+                                                selectedIconColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                selectedTextColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer
                                             )
-                                        }
+                                        )
                                     }
                                 }
                             }
 
+                            // Tombol bulat tengah yg menonjol
                             val middleSelected = tabNavigator.current.key == RecordTab.key
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .offset(y = -20.dp)
-                                    .size(75.dp)
-                                    .clickable { tabNavigator.current = RecordTab }
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                shadowElevation = 8.dp,
+                                tonalElevation = 2.dp,
+modifier = Modifier
+    .align(Alignment.BottomCenter)
+    .offset(y = middleBtnOffset)
+    .size(middleBtnSize)
+    .clip(CircleShape)
+    .clickable(
+        interactionSource = remember { MutableInteractionSource() },
+        indication = null
+    ) { tabNavigator.current = RecordTab }
                             ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    tonalElevation = 2.dp,
-                                    modifier = Modifier.matchParentSize()
-                                ) {}
-
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.tertiaryContainer,
-                                    modifier = Modifier
-                                        .align(Alignment.Center)
-                                        .size(65.dp)
-                                ) {}
-
-                                Icon(
-                                    imageVector = if (middleSelected) Icons.Filled.Edit else Icons.Outlined.Edit,
-                                    contentDescription = RecordTab.options.title,
-                                    tint = MaterialTheme.colorScheme.primaryContainer,
-                                    modifier = Modifier.align(Alignment.Center).size(30.dp)
-                                )
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (middleSelected) Icons.Filled.Edit else Icons.Outlined.Edit,
+                                        contentDescription = RecordTab.options.title,
+                                        tint = MaterialTheme.colorScheme.primaryContainer
+                                    )
+                                }
                             }
                         }
                     }
@@ -153,7 +164,8 @@ object TabContainer : Screen {
                 Box(
                     Modifier
                         .padding(padding)
-                        .nestedScroll(behavior.connection)
+                        .fillMaxSize()
+                        .nestedScroll(behavior.connection) // biar hide-on-scroll jalan
                 ) {
                     CurrentTab()
                 }
@@ -188,4 +200,3 @@ fun rememberBottomBarScrollBehavior(
 ): BottomBarScrollBehavior {
     return remember { BottomBarScrollBehavior(threshold) }
 }
-

@@ -10,12 +10,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.decodeFromString
 
 
-suspend fun HttpResponse.ensureOk() {
-    val txt = bodyAsText()
-    val env = Serde.relaxed.decodeFromString<BaseResponse<JsonObject?>>(txt)
-    if (!env.status) throw ApiException(status.value, env.message)
-}
-
 suspend fun HttpResponse.extractErrorMessage(preRead: String? = null): String {
     val txt = preRead ?: bodyAsText()
     if (txt.isBlank()) return "HTTP ${status.value} ${status.description}"
