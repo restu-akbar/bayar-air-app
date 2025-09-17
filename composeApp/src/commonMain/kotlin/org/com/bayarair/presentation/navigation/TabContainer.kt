@@ -32,7 +32,6 @@ import cafe.adriel.voyager.navigator.tab.CurrentTab
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 
-// Pastikan HomeTab, RecordTab, ProfileTab ada di project kamu.
 object TabContainer : Screen {
     @Composable
     override fun Content() {
@@ -47,14 +46,12 @@ object TabContainer : Screen {
                         enter = slideInVertically { it } + fadeIn(),
                         exit = slideOutVertically { it } + fadeOut()
                     ) {
-                        // ====== NAVBAR OVAL CUSTOM + TOMBOL TENGAH MENONJOL ======
                         Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp)) {
                             val barShape = RoundedCornerShape(18.dp)
-                            val barHeight = 88.dp          // lebih tinggi supaya “menampung” tombol
-                            val middleBtnSize = 68.dp      // ukuran tombol bulat tengah
-                            val middleBtnOffset = -(middleBtnSize / 2) // menonjol setengah
+                            val barHeight = 88.dp
+                            val middleBtnSize = 68.dp
+                            val middleBtnOffset = -(middleBtnSize / 2)
 
-                            // Kartu oval sebagai background bar
                             Surface(
                                 shape = barShape,
                                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -65,12 +62,10 @@ object TabContainer : Screen {
                                     .fillMaxWidth()
                                     .height(barHeight)
                             ) {
-                                // NavigationBar transparan di atas kartu (biar label/icon rapi)
                                 NavigationBar(
                                     containerColor = Color.Transparent,
                                     contentColor = MaterialTheme.colorScheme.onSurface,
                                     tonalElevation = 0.dp
-                                    // Biarkan insets default (JANGAN set WindowInsets(0,0,0,0))
                                 ) {
                                     // Home
                                     run {
@@ -132,22 +127,22 @@ object TabContainer : Screen {
                                 }
                             }
 
-                            // Tombol bulat tengah yg menonjol
+                            // record 
                             val middleSelected = tabNavigator.current.key == RecordTab.key
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.tertiaryContainer,
                                 shadowElevation = 8.dp,
                                 tonalElevation = 2.dp,
-modifier = Modifier
-    .align(Alignment.BottomCenter)
-    .offset(y = middleBtnOffset)
-    .size(middleBtnSize)
-    .clip(CircleShape)
-    .clickable(
-        interactionSource = remember { MutableInteractionSource() },
-        indication = null
-    ) { tabNavigator.current = RecordTab }
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .offset(y = middleBtnOffset)
+                                    .size(middleBtnSize)
+                                    .clip(CircleShape)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { tabNavigator.current = RecordTab }
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -165,7 +160,7 @@ modifier = Modifier
                     Modifier
                         .padding(padding)
                         .fillMaxSize()
-                        .nestedScroll(behavior.connection) // biar hide-on-scroll jalan
+                        .nestedScroll(behavior.connection)
                 ) {
                     CurrentTab()
                 }

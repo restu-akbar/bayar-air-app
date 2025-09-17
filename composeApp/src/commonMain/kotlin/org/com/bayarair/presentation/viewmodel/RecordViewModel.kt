@@ -1,5 +1,6 @@
 package org.com.bayarair.presentation.viewmodel
 
+import android.graphics.Bitmap
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.async
@@ -10,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.com.bayarair.data.model.Customer
 import org.com.bayarair.data.repository.RecordRepository
+import java.io.ByteArrayOutputStream
 
 class RecordScreenModel(
     private val repo: RecordRepository,
@@ -115,6 +117,55 @@ class RecordScreenModel(
     }
 
     fun removeFee(id: Long) = mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
+
+    fun saveRecord(bitmap: Bitmap?) {
+        val st = state.value
+        if (st.selectedCustomerId.isBlank()) {
+            screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Pilih pelanggan dulu")) }
+            return
+        }
+        if (st.meteranText.isBlank()) {
+            screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Isi meteran bulan ini")) }
+            return
+        }
+        if (bitmap == null) {
+            screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran")) }
+            return
+        }
+
+        mutableState.update { it.copy(isLoading = true) }
+        screenModelScope.launch {
+            try {
+                val stream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                val photoBytes = stream.toByteArray()
+
+                val fees =
+                    st.otherFees.associate {
+                        it.type!! to (it.amount.toLongOrNull() ?: 0L)
+                    }
+
+                repo
+                    .saveRecord(
+                        customerId = st.selectedCustomerId,
+                        meter = st.meteranText.toInt(),
+                        totalAmount = st.totalBayar,
+                        evidence = photoBytes,
+                        otherFees = fees,
+                    ).onSuccess {
+                        _events.emit(RecordEvent.ShowSnackbar("Data berhasil disimpan"))
+                        _events.emit(RecordEvent.ClearImage)
+                        _events.emit(RecordEvent.Saved)
+                        clearCustomer()
+                        mutableState.update { it.copy(meteranText = "", otherFees = emptyList()) }
+                    }.onFailure {
+                        _events.emit(RecordEvent.ShowSnackbar(it.message ?: "Gagal menyimpan"))
+                    }
+            } finally {
+                mutableState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
 }
 
 private fun String?.orElse(fallback: String) = this ?: fallback
@@ -161,4 +212,8 @@ sealed interface RecordEvent {
     data class ShowSnackbar(
         val message: String,
     ) : RecordEvent
+
+    object Saved : RecordEvent
+
+    object ClearImage : RecordEvent
 }

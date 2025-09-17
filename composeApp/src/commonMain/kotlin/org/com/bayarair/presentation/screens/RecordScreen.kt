@@ -6,12 +6,18 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
-import android.Manifest
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.Manifest
+import android.content.Context
+import android.os.Environment
+import androidx.core.content.FileProvider
+import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.*
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -52,7 +58,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.com.bayarair.data.model.Customer
@@ -61,51 +67,75 @@ import org.com.bayarair.presentation.viewmodel.RecordScreenModel
 import org.com.bayarair.presentation.viewmodel.RecordEvent
 import org.com.bayarair.presentation.viewmodel.OtherFee
 import org.com.bayarair.utils.groupThousands
+import org.com.bayarair.presentation.navigation.HomeTab
 
 object RecordScreen : Screen {
     @Composable
     override fun Content() {
         val vm: RecordScreenModel = koinScreenModel()
         val state by vm.state.collectAsState()
+        val tabNavigator = LocalTabNavigator.current
 
         val context = LocalContext.current
         val focusManager = LocalFocusManager.current
         var expanded by remember { mutableStateOf(false) }
-        var bitmap: Bitmap? by remember { mutableStateOf(null) }
-
+        var photoUri by remember { mutableStateOf<Uri?>(null) }
+        var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+        
         val snackbarHostState = remember { SnackbarHostState() }
-        LaunchedEffect(Unit) {
-            vm.load()
-        }
+        
+        LaunchedEffect(Unit) { vm.load() }
         LaunchedEffect(Unit) {
             vm.events.collect { ev ->
                 when (ev) {
                     is RecordEvent.ShowSnackbar -> snackbarHostState.showSnackbar(ev.message)
+                    RecordEvent.ClearImage -> bitmap = null
+                    RecordEvent.Saved -> tabNavigator.current = HomeTab
                 }
             }
         }
-
+        
         val takePictureLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.TakePicturePreview()
-        ) { bmp -> if (bmp != null) bitmap = bmp }
-
+            ActivityResultContracts.TakePicture()
+        ) { success ->
+            if (success) {
+                val uri = photoUri ?: return@rememberLauncherForActivityResult
+                context.contentResolver.openInputStream(uri)?.use { stream ->
+                    bitmap = BitmapFactory.decodeStream(stream)
+                }
+            }
+        }
+        
+        fun openCamera() {
+            val imageFile = File(
+                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
+                "meter_${System.currentTimeMillis()}.jpg"
+            )
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                imageFile
+            )
+            photoUri = uri
+            takePictureLauncher.launch(uri)
+        }
+        
         val cameraPermissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()
-        ) { granted -> if (granted) takePictureLauncher.launch(null) }
-
+        ) { granted ->
+            if (granted) openCamera()
+        }
+        
         val pickImageLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.GetContent()
         ) { uri: Uri? ->
-            if (uri != null) {
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    BitmapFactory.decodeStream(stream)?.let { bitmap = it }
+            uri?.let {
+                context.contentResolver.openInputStream(it)?.use { stream ->
+                    bitmap = BitmapFactory.decodeStream(stream)
                 }
             }
         }
 
-        fun openCamera() = cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-
-        // --- warna tema ---
         val bgBlue = MaterialTheme.colorScheme.background
         val green = MaterialTheme.colorScheme.tertiaryContainer
         val formBg = MaterialTheme.colorScheme.primaryContainer
@@ -294,9 +324,9 @@ object RecordScreen : Screen {
                         .clip(RoundedCornerShape(4.dp))
                         .background(formBg)
                         .border(1.dp, Color.LightGray, RoundedCornerShape(4.dp))
-                        .clickable { openCamera() }
+                        .clickable { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }
                         .then(
-                            if (bitmap != null) Modifier.heightIn(max = 350.dp)
+                            if (bitmap != null) Modifier.heightIn(max = 400.dp)
                             else Modifier.height(230.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -431,7 +461,7 @@ object RecordScreen : Screen {
                 // ====== Tombol simpan ======
                 Spacer(Modifier.height(8.dp))
                 Button(
-                    onClick = { /* TODO: simpan & cetak */ },
+                    onClick = { vm.saveRecord(bitmap) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
