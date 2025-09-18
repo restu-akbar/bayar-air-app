@@ -14,6 +14,13 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import org.com.bayarair.presentation.theme.activeButton
+import org.com.bayarair.presentation.theme.activeButtonText
+import org.com.bayarair.presentation.theme.inactiveButton
+import org.com.bayarair.presentation.theme.inactiveButtonText
 import org.com.bayarair.presentation.viewmodel.AuthViewModel
 import org.com.bayarair.presentation.viewmodel.AuthEvent
 
@@ -27,6 +34,8 @@ object HomeScreen : Screen {
         val rootNavigator = remember(navigator) {
             generateSequence(navigator) { it.parent }.last()
         }
+        var name = "Acong Sukoco" //
+        var switcher by remember { mutableStateOf(true) } // History
 
         LaunchedEffect(Unit) {
             authVm.events.collectLatest { ev ->
@@ -40,41 +49,97 @@ object HomeScreen : Screen {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHost) }
         ) { padding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
-                val listState = rememberLazyListState()
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    item {
-                        Text("Hello from Compose Multiplatform 👋")
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = { authVm.logout() }) { Text("Logout") }
-                        Spacer(Modifier.height(24.dp))
-                        Text("Scroll list di bawah buat ngetes bottom bar auto-hide:")
-                        Spacer(Modifier.height(12.dp))
-                    }
-                
-                    items(count = 60) { index ->
-                        val i = index + 1
-                        ElevatedCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
+            Column(
+            ){
+                Column(
+                    modifier = Modifier
+                        .padding(2.dp),
+                ){
+                    Text(
+                        text = "Bayar Air Dashboard",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Selamat Datang, $name !",
+                        color = Color.White
+                    )
+                    Row(
+                        modifier = Modifier.padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Button(
+                            onClick = { switcher = false },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!switcher)
+                                    MaterialTheme.colorScheme.activeButton
+                                else
+                                    MaterialTheme.colorScheme.inactiveButton,
+                                contentColor = if (!switcher)
+                                    MaterialTheme.colorScheme.activeButtonText
+                                else
+                                    MaterialTheme.colorScheme.inactiveButtonText,
+                            )
                         ) {
-                            Column(Modifier.padding(16.dp)) {
-                                Text("Item $i", style = MaterialTheme.typography.titleMedium)
-                                Spacer(Modifier.height(8.dp))
-                                Text("Ini dummy content untuk cek perilaku scrolling.")
-                            }
+                            Text("Statistik")
+                        }
+                        Button(
+                            onClick = { switcher = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (switcher)
+                                    MaterialTheme.colorScheme.activeButton
+                                else
+                                    MaterialTheme.colorScheme.inactiveButton,
+                                contentColor = if (switcher)
+                                    MaterialTheme.colorScheme.activeButtonText
+                                else
+                                    MaterialTheme.colorScheme.inactiveButtonText,
+                            )
+                        ) {
+                            Text("History")
                         }
                     }
                 }
+                if (switcher){
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                    ) {
+                        val listState = rememberLazyListState()
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            items(count = 20) { index ->
+                                val i = index + 1
+                                ElevatedCard(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                ) {
+                                    Column(Modifier.padding(16.dp)) {
+                                        Text("Nama pelanggan $i", style = MaterialTheme.typography.titleMedium)
+                                        Row(
+                                            modifier = Modifier.fillMaxSize(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ){
+                                            Column(){
+                                                Text(" Status Pembayaran")
+                                                Text(" tanggal dibuat")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }else{
+                    Text("ini statistik")
+                }
             }
+
         }
     }
 }

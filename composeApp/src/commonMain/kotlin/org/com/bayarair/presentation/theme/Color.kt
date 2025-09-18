@@ -16,3 +16,14 @@ val OnBackground = Color(0xFFFFFFFF)
 val DarkPrimary = Color(0xFF83C5BE)
 val DarkSecondary = Color(0xFF006D77)
 val DarkTertiary = Color(0xFF2D2D2D)
+
+val ActiveButton = Color.White
+val ActiveButtonText = Color.Black
+
+val InactiveButton = Color.Gray
+val InactiveButtonText = Color.LightGray
+
+val DarkActiveButton = Color(0xFF57547C)
+val DarkActiveButtonText = Color.White
+val DarkInactiveButton = Color.Gray
+val DarkInactiveButtonText = Color.LightGray

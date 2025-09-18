@@ -12,6 +12,7 @@ import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.tab.Tab
 import cafe.adriel.voyager.navigator.tab.TabOptions
 import org.com.bayarair.presentation.screens.HomeScreen
+import org.com.bayarair.presentation.screens.ProfileScreen
 import org.com.bayarair.presentation.screens.RecordScreen
 
 object HomeTab : Tab {
@@ -56,6 +57,8 @@ object ProfileTab : Tab {
 
     @Composable
     override fun Content() {
-        Text("Ini Profile")
+        Navigator(ProfileScreen) { nav ->
+            nav.lastItem.Content()
+        }
     }
 }
