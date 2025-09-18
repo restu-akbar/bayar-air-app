@@ -14,10 +14,11 @@ import org.com.bayarair.data.remote.BASE_URL
 import org.com.bayarair.data.dto.unwrapFlexible
 import org.com.bayarair.data.dto.HargaData
 import org.com.bayarair.data.dto.PelangganDto
+import org.com.bayarair.data.dto.SaveRecordResponse
 import org.com.bayarair.data.model.Customer
 import org.com.bayarair.data.model.toDomain
-
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonElement
 
 class RecordRepository(private val client: HttpClient) {
     suspend fun getHarga(): Result<Long> = runCatching {
@@ -36,13 +37,14 @@ class RecordRepository(private val client: HttpClient) {
 
     suspend fun getCustomers(): Result<List<Customer>> =
         getPelanggan().mapCatching { list -> list.map { it.toDomain() } }
-        suspend fun saveRecord(
+    
+    suspend fun saveRecord(
         customerId: String,
         meter: Int,
         totalAmount: Long,
         evidence: ByteArray,
         otherFees: Map<String, Long?>
-    ): Result<Unit> = runCatching {
+    ): Result<SaveRecordResponse<JsonElement>> = runCatching {
         client.submitFormWithBinaryData(
             url = "$BASE_URL/pencatatan",
             formData = formData {
@@ -66,6 +68,6 @@ class RecordRepository(private val client: HttpClient) {
                     }
                 )
             }
-        ).unwrapFlexible<Unit>()
+        ).unwrapFlexible<SaveRecordResponse<JsonElement>>()
     }
 }

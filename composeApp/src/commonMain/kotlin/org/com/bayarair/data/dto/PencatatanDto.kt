@@ -19,3 +19,15 @@ data class PelangganDto(
 data class HargaData(
     val harga: Long,
 )
+
+@Serializable
+data class SaveRecordResponse<T>(
+    val pencatatan: T? = null,
+    val struk: StrukDto,
+)
+
+@Serializable
+data class StrukDto(
+    val url: String,
+    val filename: String,
+)

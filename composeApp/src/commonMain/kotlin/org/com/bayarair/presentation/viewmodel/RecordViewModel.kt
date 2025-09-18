@@ -32,14 +32,18 @@ class RecordScreenModel(
                 .onSuccess { harga ->
                     mutableState.update { it.copy(hargaPerM3 = harga) }
                 }.onFailure {
-                    _events.emit(RecordEvent.ShowSnackbar(it.message ?: "Gagal memuat harga"))
+                    _events.emit(
+                        RecordEvent.ShowSnackbar(
+                            it.message ?: "Harga per kubik dan biaya admin belum dibuat, silakan hubungi admin",
+                        ),
+                    )
                 }
 
             custRes
                 .onSuccess { list ->
                     mutableState.update { it.copy(customers = list) }
                 }.onFailure {
-                    _events.emit(RecordEvent.ShowSnackbar(it.message ?: "Gagal memuat pelanggan"))
+                    _events.emit(RecordEvent.ShowSnackbar(it.message ?: "Belum ada pelanggan yang terdaftar, silakan hubungi admin"))
                 }
 
             mutableState.update { it.copy(isLoading = false) }
@@ -119,23 +123,38 @@ class RecordScreenModel(
     fun removeFee(id: Long) = mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
 
     fun saveRecord(bitmap: Bitmap?) {
-        val st = state.value
-        if (st.selectedCustomerId.isBlank()) {
-            screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Pilih pelanggan dulu")) }
-            return
-        }
-        if (st.meteranText.isBlank()) {
-            screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Isi meteran bulan ini")) }
-            return
-        }
-        if (bitmap == null) {
-            screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran")) }
-            return
-        }
+        try {
+            println("tes")
+            screenModelScope.launch {
+                mutableState.update { it.copy(isLoading = true) }
+                if (state.value.hargaPerM3 <= 0L) {
+                    val hargaRes = repo.getHarga()
+                    if (hargaRes.isFailure) {
+                        val msg =
+                            hargaRes.exceptionOrNull()?.message
+                                ?: "Harga kubik dan biaya admin belum dibuat, silakan hubungi admin"
+                        _events.emit(RecordEvent.ShowSnackbar(msg))
+                        return@launch
+                    } else {
+                        val newHarga = hargaRes.getOrThrow()
+                        mutableState.update { it.copy(hargaPerM3 = newHarga) }
+                    }
+                }
 
-        mutableState.update { it.copy(isLoading = true) }
-        screenModelScope.launch {
-            try {
+                val st = state.value
+                if (st.selectedCustomerId.isBlank()) {
+                    screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Pilih pelanggan dulu")) }
+                    return@launch
+                }
+                if (st.meteranText.isBlank()) {
+                    screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Isi meteran bulan ini")) }
+                    return@launch
+                }
+                if (bitmap == null) {
+                    screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran")) }
+                    return@launch
+                }
+
                 val stream = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
                 val photoBytes = stream.toByteArray()
@@ -152,18 +171,19 @@ class RecordScreenModel(
                         totalAmount = st.totalBayar,
                         evidence = photoBytes,
                         otherFees = fees,
-                    ).onSuccess {
+                    ).onSuccess { response ->
                         _events.emit(RecordEvent.ShowSnackbar("Data berhasil disimpan"))
                         _events.emit(RecordEvent.ClearImage)
-                        _events.emit(RecordEvent.Saved)
                         clearCustomer()
                         mutableState.update { it.copy(meteranText = "", otherFees = emptyList()) }
+                        _events.emit(RecordEvent.PrintReceipt(response.struk.url, response.struk.filename))
                     }.onFailure {
                         _events.emit(RecordEvent.ShowSnackbar(it.message ?: "Gagal menyimpan"))
                     }
-            } finally {
-                mutableState.update { it.copy(isLoading = false) }
             }
+        } finally {
+            println("tes2")
+            mutableState.update { it.copy(isLoading = false) }
         }
     }
 }
@@ -213,7 +233,10 @@ sealed interface RecordEvent {
         val message: String,
     ) : RecordEvent
 
-    object Saved : RecordEvent
-
     object ClearImage : RecordEvent
+
+    data class PrintReceipt(
+        val url: String,
+        val filename: String,
+    ) : RecordEvent
 }

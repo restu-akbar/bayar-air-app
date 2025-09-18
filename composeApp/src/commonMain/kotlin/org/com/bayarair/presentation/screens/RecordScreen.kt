@@ -66,31 +66,52 @@ import org.com.bayarair.utils.formatRupiah
 import org.com.bayarair.presentation.viewmodel.RecordScreenModel
 import org.com.bayarair.presentation.viewmodel.RecordEvent
 import org.com.bayarair.presentation.viewmodel.OtherFee
-import org.com.bayarair.utils.groupThousands
 import org.com.bayarair.presentation.navigation.HomeTab
+import org.com.bayarair.utils.groupThousands
+import org.com.bayarair.utils.LocalReceiptPrinter
 
 object RecordScreen : Screen {
     @Composable
     override fun Content() {
         val vm: RecordScreenModel = koinScreenModel()
         val state by vm.state.collectAsState()
-        val tabNavigator = LocalTabNavigator.current
 
         val context = LocalContext.current
         val focusManager = LocalFocusManager.current
         var expanded by remember { mutableStateOf(false) }
         var photoUri by remember { mutableStateOf<Uri?>(null) }
         var bitmap by remember { mutableStateOf<Bitmap?>(null) }
-        
+
         val snackbarHostState = remember { SnackbarHostState() }
-        
+        val printer = LocalReceiptPrinter.current
+        val scope = rememberCoroutineScope()
+
         LaunchedEffect(Unit) { vm.load() }
+
         LaunchedEffect(Unit) {
             vm.events.collect { ev ->
                 when (ev) {
-                    is RecordEvent.ShowSnackbar -> snackbarHostState.showSnackbar(ev.message)
-                    RecordEvent.ClearImage -> bitmap = null
-                    RecordEvent.Saved -> tabNavigator.current = HomeTab
+                    is RecordEvent.ShowSnackbar -> {
+                        snackbarHostState.showSnackbar(ev.message)
+                    }
+                    RecordEvent.ClearImage -> {
+                        bitmap = null
+                    }
+                    is RecordEvent.PrintReceipt -> {
+                        val p = printer
+                        if (p == null) {
+                            snackbarHostState.showSnackbar("Fitur printer belum tersedia di device ini")
+                        } else {
+                            scope.launch {
+                                runCatching { p.printPdfFromUrl(ev.url) }
+                                    .onFailure { throwable ->
+                                        snackbarHostState.showSnackbar(
+                                            "Gagal cetak: ${throwable.message ?: "Unknown error"}"
+                                        )
+                                    }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -227,7 +248,7 @@ object RecordScreen : Screen {
                         val items = state.filteredCustomers
                         if (items.isEmpty()) {
                             DropdownMenuItem(
-                                text = { Text("Tidak ditemukan") },
+                                text = { Text("Tidak ada pelanggan yang belum tercatat bulan ini") },
                                 onClick = { },
                                 enabled = false
                             )
@@ -497,7 +518,7 @@ private fun BiayaItemRow(
 ) {
     var expanded by remember { mutableStateOf(false) }
     var selectedType by remember(fee.id) { mutableStateOf(fee.type.orEmpty()) }
-    var amountDigits by remember(fee.id) { mutableStateOf(fee.amount) } // digit-only
+    var amountDigits by remember(fee.id) { mutableStateOf(fee.amount) }
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -586,7 +607,7 @@ private class RupiahVisualTransformation : VisualTransformation {
         val raw = text.text.filter(Char::isDigit)
         val grouped = groupThousands(raw)
         val out = "Rp " + grouped
-        val prefix = 3 // "Rp "
+        val prefix = 3
         val n = raw.length
 
         val orig2trans = IntArray(n + 1)
@@ -603,7 +624,6 @@ private class RupiahVisualTransformation : VisualTransformation {
             }
             override fun transformedToOriginal(offset: Int): Int {
                 val t = offset.coerceAtLeast(0)
-                // cari k terbesar dengan orig2trans[k] <= t
                 var k = 0
                 for (i in 0..n) {
                     if (orig2trans[i] <= t) k = i else break

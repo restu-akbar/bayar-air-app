@@ -36,9 +36,7 @@ object TabContainer : Screen {
     @Composable
     override fun Content() {
         TabNavigator(RecordTab) { tabNavigator ->
-
             val behavior = rememberBottomBarScrollBehavior()
-
             Scaffold(
                 bottomBar = {
                     AnimatedVisibility(
@@ -62,7 +60,13 @@ object TabContainer : Screen {
                                     .fillMaxWidth()
                                     .height(barHeight)
                             ) {
+                              Box(Modifier.fillMaxSize()) {
                                 NavigationBar(
+                                    modifier = Modifier
+                                        .align(Alignment.Center)             // ⬅️ center vertikal di dalam bar 88dp
+                                        .fillMaxWidth()
+                                        .height(80.dp),                  // ⬅️ tinggi konten nav 80dp
+                                    windowInsets = WindowInsets(0),          // ⬅️ matikan padding insets bawaan
                                     containerColor = Color.Transparent,
                                     contentColor = MaterialTheme.colorScheme.onSurface,
                                     tonalElevation = 0.dp
@@ -125,31 +129,47 @@ object TabContainer : Screen {
                                         )
                                     }
                                 }
+                              }
                             }
 
                             // record 
                             val middleSelected = tabNavigator.current.key == RecordTab.key
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.tertiaryContainer,
-                                shadowElevation = 8.dp,
-                                tonalElevation = 2.dp,
+                            Box(
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
                                     .offset(y = middleBtnOffset)
-                                    .size(middleBtnSize)
-                                    .clip(CircleShape)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) { tabNavigator.current = RecordTab }
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (middleSelected) Icons.Filled.Edit else Icons.Outlined.Edit,
-                                        contentDescription = RecordTab.options.title,
-                                        tint = MaterialTheme.colorScheme.primaryContainer
-                                    )
+                                val ringThickness = 6.dp
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shadowElevation = 0.dp,
+                                    tonalElevation = 0.dp,
+                                    modifier = Modifier
+                                        .size(middleBtnSize + ringThickness * 2)
+                                ) {}
+                            
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                    shadowElevation = 8.dp,
+                                    tonalElevation = 2.dp,
+                                    modifier = Modifier
+                                        .align(Alignment.Center)
+                                        .size(middleBtnSize)
+                                        .clip(CircleShape)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) { tabNavigator.current = RecordTab }
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (middleSelected) Icons.Filled.Edit else Icons.Outlined.Edit,
+                                            contentDescription = RecordTab.options.title,
+                                            tint = MaterialTheme.colorScheme.primaryContainer
+                                        )
+                                    }
                                 }
                             }
                         }
