@@ -1,3 +1,4 @@
+import org.gradle.kotlin.dsl.implementation
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -44,7 +45,8 @@ kotlin {
                 implementation(libs.navigator.transitions)
                 implementation(libs.navigator.viewmodel)
                 implementation(libs.navigator.koin)
-                implementation(libs.webView)
+                // this the library
+                implementation(libs.ehsannarmani.compose.charts)
             }
         }
         val androidMain by getting {

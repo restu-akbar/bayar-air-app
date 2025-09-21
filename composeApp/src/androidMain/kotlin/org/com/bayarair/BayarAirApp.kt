@@ -10,6 +10,7 @@ class BayarAirApp : Application() {
     override fun onCreate() {
         super.onCreate()
         startKoin {
+            printLogger()
             androidContext(this@BayarAirApp)
             modules(
                 commonModule,

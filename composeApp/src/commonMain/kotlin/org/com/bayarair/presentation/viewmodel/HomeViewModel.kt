@@ -1,16 +1,50 @@
 package org.com.bayarair.presentation.viewmodel
 
-import cafe.adriel.voyager.core.model.ScreenModel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import org.com.bayarair.data.repository.AuthRepository
-import org.com.bayarair.data.token.TokenHandler
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import org.com.bayarair.data.model.MeterRecord
+import org.com.bayarair.data.repository.MeterRecordRepository
 
 class HomeViewModel(
-    private val tokenHandler: TokenHandler,
-    private val authRepo: AuthRepository,
-) : ScreenModel {
-    private val _onErrorMessage = MutableSharedFlow<String>()
-    val onErrorMessage: SharedFlow<String> = _onErrorMessage
+    private val  repository: MeterRecordRepository,
+) : ViewModel() {
+    private val _records = MutableStateFlow<List<MeterRecord>>(emptyList())
+    val records: StateFlow<List<MeterRecord>> = _records
 
+    private val _loading = MutableStateFlow(false)
+    val loading: StateFlow<Boolean> = _loading
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error
+
+    fun loadHistory() {
+        viewModelScope.launch {
+            _loading.value = true
+            repository.getRecords()
+                .onSuccess { data ->
+                    _records.value = data
+                }
+                .onFailure { e ->
+                    _error.value = e.message
+                }
+            _loading.value = false
+        }
+    }
+
+    fun getUserName() {
+        viewModelScope.launch {
+            _loading.value = true
+            repository.getRecords()
+                .onSuccess { data ->
+                    _records.value = data
+                }
+                .onFailure { e ->
+                    _error.value = e.message
+                }
+            _loading.value = false
+        }
+    }
 }
