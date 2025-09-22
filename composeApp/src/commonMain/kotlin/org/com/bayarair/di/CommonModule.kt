@@ -20,7 +20,13 @@ val commonModule =
         single<AuthRepository> { AuthRepository(get<HttpClient>()) }
         single<RecordRepository> { RecordRepository(get<HttpClient>()) }
 
-        factory<AuthViewModel> { AuthViewModel(get<TokenHandler>(), get<AuthRepository>()) }
+        factory<AuthViewModel> {
+            AuthViewModel(
+                get<TokenHandler>(),
+                get<AuthRepository>(),
+                get<AppEvents>()
+            )
+        }
         factory<SplashViewModel> { SplashViewModel(get<TokenHandler>()) }
         factory<HomeViewModel> { HomeViewModel(get<TokenHandler>(), get<AuthRepository>()) }
         factory<RecordScreenModel> { RecordScreenModel(get<RecordRepository>()) }

@@ -16,7 +16,7 @@ actual fun createHttpClient(): HttpClient {
         tokenProvider = { tokenHandler.getToken() },
         onUnauthorized = {
             tokenHandler.clear()
-            appEvents.emit(AppEvent.Logout)
+            appEvents.emit(AppEvent.Logout("Anda telah login di perangkat lain. Silakan login ulang"))
         },
     )
 }

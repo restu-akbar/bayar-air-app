@@ -1,17 +1,12 @@
 package org.com.bayarair.presentation.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import org.com.bayarair.presentation.theme.ActiveButton
-import org.com.bayarair.presentation.theme.PrimaryContainer
-import org.com.bayarair.presentation.theme.Secondary
-
-import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.ReadOnlyComposable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.graphics.Color
 
 private val LightColors = lightColorScheme(
@@ -32,7 +27,7 @@ private val DarkColors = darkColorScheme(
     secondary = DarkSecondary,
     tertiary = DarkTertiary,
 
-)
+    )
 
 val ColorScheme.activeButton: Color
     @Composable
@@ -56,10 +51,10 @@ val ColorScheme.inactiveButtonText: Color
 
 @Composable
 fun BayarAirTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+//     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colors = if (darkTheme) DarkColors else LightColors
+    val colors = LightColors
 
     MaterialTheme(
         colorScheme = colors,

@@ -2,26 +2,25 @@ package org.com.bayarair.presentation.viewmodel
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import org.com.bayarair.core.AppEvent
+import org.com.bayarair.core.AppEvents
 import org.com.bayarair.data.repository.AuthRepository
 import org.com.bayarair.data.token.TokenHandler
 
 sealed interface AuthState {
     data object Idle : AuthState
     data object Loading : AuthState
-    data class Error(val message: String) : AuthState
-    data object Success : AuthState
-}
-
-sealed interface AuthEvent {
-    data object LoggedOut : AuthEvent
-    data class LogoutError(val message: String) : AuthEvent
+    data class Success(val message: String) : AuthState
+    data class ShowSnackbar(val message: String) : AuthState
 }
 
 class AuthViewModel(
     private val tokenStore: TokenHandler,
     private val authRepository: AuthRepository,
+    private val appEvents: AppEvents,
 ) : ScreenModel {
 
     private val _login = MutableStateFlow("")
@@ -33,11 +32,13 @@ class AuthViewModel(
     private val _state = MutableStateFlow<AuthState>(AuthState.Idle)
     val state: StateFlow<AuthState> = _state
 
-    private val _events = MutableSharedFlow<AuthEvent>()
-    val events: SharedFlow<AuthEvent> = _events
+    fun onLoginChange(v: String) {
+        _login.value = v
+    }
 
-    fun onLoginChange(v: String) { _login.value = v }
-    fun onPasswordChange(v: String) { _password.value = v }
+    fun onPasswordChange(v: String) {
+        _password.value = v
+    }
 
     fun onLoginClick() {
         if (_state.value == AuthState.Loading) return
@@ -49,32 +50,29 @@ class AuthViewModel(
 
             val result = authRepository.login(l, p)
             result
-                .onSuccess { token ->
-                    tokenStore.setToken(token)
-                    _state.value = AuthState.Success
+                .onSuccess { env ->
+                    tokenStore.setToken(env.data!!.token)
+                    _state.value = AuthState.Success(env.message)
                 }
                 .onFailure { e ->
                     _password.value = ""
-                    _state.value = AuthState.Error(e.message ?: "Login gagal")
+                    _state.value = AuthState.ShowSnackbar(e.message ?: "Login gagal")
                 }
         }
     }
 
     fun logout() {
         screenModelScope.launch {
-            val token = tokenStore.getToken()
-            val result = if (token.isNullOrBlank()) {
-                Result.failure(IllegalStateException("Token kosong"))
-            } else {
-                runCatching { authRepository.logout(token) }
-            }
-
+            val result = authRepository.logout()
+            result
+                .onSuccess() { env ->
+                    _state.value = AuthState.Idle
+                    appEvents.emit(AppEvent.Logout(env.message))
+                }
+                .onFailure { e ->
+                    appEvents.emit(AppEvent.Logout(e.message ?: " Logout gagal"))
+                }
             runCatching { tokenStore.clear() }
-
-            result.onFailure { e ->
-                _events.emit(AuthEvent.LogoutError(e.message ?: "Logout gagal"))
-            }
-            _events.emit(AuthEvent.LoggedOut)
         }
     }
 }

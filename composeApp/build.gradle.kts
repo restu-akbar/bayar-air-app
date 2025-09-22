@@ -44,6 +44,7 @@ kotlin {
                 implementation(libs.navigator.transitions)
                 implementation(libs.navigator.viewmodel)
                 implementation(libs.navigator.koin)
+                implementation(libs.webView)
             }
         }
         val androidMain by getting {

@@ -2,22 +2,13 @@
 
 package org.com.bayarair.presentation.screens
 
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
+import android.Manifest
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.Manifest
-import android.content.Context
 import android.os.Environment
-import androidx.core.content.FileProvider
-import java.io.File
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.runtime.*
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,23 +18,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowDropDown
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.CloudUpload
-import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material.icons.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.automirrored.outlined.ArrowLeft
+import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,31 +39,41 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.koin.koinScreenModel
-import cafe.adriel.voyager.navigator.currentOrThrow
-import org.com.bayarair.data.model.Customer
-import org.com.bayarair.utils.formatRupiah
-import org.com.bayarair.presentation.viewmodel.RecordScreenModel
-import org.com.bayarair.presentation.viewmodel.RecordEvent
-import org.com.bayarair.presentation.viewmodel.OtherFee
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
+import cafe.adriel.voyager.navigator.LocalNavigator
+import kotlinx.coroutines.launch
 import org.com.bayarair.presentation.navigation.HomeTab
-import org.com.bayarair.utils.groupThousands
+import org.com.bayarair.presentation.navigation.LocalPreviousTabKey
+import org.com.bayarair.presentation.navigation.ProfileTab
+import org.com.bayarair.presentation.viewmodel.OtherFee
+import org.com.bayarair.presentation.viewmodel.RecordEvent
+import org.com.bayarair.presentation.viewmodel.RecordScreenModel
 import org.com.bayarair.utils.LocalReceiptPrinter
+import org.com.bayarair.utils.formatRupiah
+import org.com.bayarair.utils.groupThousands
+import java.io.File
 
 object RecordScreen : Screen {
+    @OptIn(ExperimentalMaterialApi::class)
     @Composable
     override fun Content() {
         val vm: RecordScreenModel = koinScreenModel()
         val state by vm.state.collectAsState()
-
+        val tabNavigator = LocalTabNavigator.current
+        val navigator = LocalNavigator.current
+        val prevKey = LocalPreviousTabKey.current.value
         val context = LocalContext.current
         val focusManager = LocalFocusManager.current
         var expanded by remember { mutableStateOf(false) }
@@ -86,36 +84,38 @@ object RecordScreen : Screen {
         val printer = LocalReceiptPrinter.current
         val scope = rememberCoroutineScope()
 
-        LaunchedEffect(Unit) { vm.load() }
+        var showFullLoading by remember { mutableStateOf(false) }
+
+        LaunchedEffect(Unit) { vm.load(minMs = 1000).join() }
 
         LaunchedEffect(Unit) {
             vm.events.collect { ev ->
                 when (ev) {
-                    is RecordEvent.ShowSnackbar -> {
-                        snackbarHostState.showSnackbar(ev.message)
-                    }
-                    RecordEvent.ClearImage -> {
+                    is RecordEvent.ShowSnackbar -> snackbarHostState.showSnackbar(ev.message)
+                    is RecordEvent.Saved -> {
                         bitmap = null
+                        navigator?.replaceAll(RecordDetailScreen(ev.url, false))
                     }
-                    is RecordEvent.PrintReceipt -> {
-                        val p = printer
-                        if (p == null) {
-                            snackbarHostState.showSnackbar("Fitur printer belum tersedia di device ini")
-                        } else {
-                            scope.launch {
-                                runCatching { p.printPdfFromUrl(ev.url) }
-                                    .onFailure { throwable ->
-                                        snackbarHostState.showSnackbar(
-                                            "Gagal cetak: ${throwable.message ?: "Unknown error"}"
-                                        )
-                                    }
-                            }
-                        }
-                    }
+//                     is RecordEvent.PrintReceipt -> {
+//                         val p = printer
+//                         if (p == null) {
+//                             snackbarHostState.showSnackbar("Fitur printer belum tersedia di device ini")
+//                         } else {
+//                             scope.launch {
+//                                 runCatching { p.printPdfFromUrl(ev.url) }
+//                                     .onFailure { throwable ->
+//                                         snackbarHostState.showSnackbar("Gagal cetak: ${throwable.message ?: "Unknown error"}")
+//                                     }
+//                             }
+//                         }
+//                     }
+
+                    is RecordEvent.ShowLoading -> showFullLoading = true
+                    is RecordEvent.Idle -> showFullLoading = false
                 }
             }
         }
-        
+
         val takePictureLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.TakePicture()
         ) { success ->
@@ -126,27 +126,22 @@ object RecordScreen : Screen {
                 }
             }
         }
-        
+
         fun openCamera() {
             val imageFile = File(
                 context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
                 "meter_${System.currentTimeMillis()}.jpg"
             )
             val uri = FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                imageFile
+                context, "${context.packageName}.fileprovider", imageFile
             )
             photoUri = uri
             takePictureLauncher.launch(uri)
         }
-        
+
         val cameraPermissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()
-        ) { granted ->
-            if (granted) openCamera()
-        }
-        
+        ) { granted -> if (granted) openCamera() }
         val pickImageLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.GetContent()
         ) { uri: Uri? ->
@@ -162,343 +157,452 @@ object RecordScreen : Screen {
         val formBg = MaterialTheme.colorScheme.primaryContainer
         val textOnBg = MaterialTheme.colorScheme.onBackground
 
+        var isRefreshing by remember { mutableStateOf(false) }
+        val pullState = rememberPullRefreshState(
+            refreshing = isRefreshing,
+            onRefresh = {
+                scope.launch {
+                    isRefreshing = true
+                    vm.load(minMs = 500).join()
+                    isRefreshing = false
+                }
+            }
+        )
+
         Scaffold(
             containerColor = bgBlue,
             snackbarHost = { SnackbarHost(snackbarHostState) }
         ) { padding ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .pullRefresh(pullState)
             ) {
-                // Judul
-                Text(
-                    text = "Catat Air!",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = textOnBg,
-                    textAlign = TextAlign.Center,
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                )
-
-                // ====== Pelanggan (dropdown) ======
-                Text("Pelanggan", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
+                        .padding(horizontal = 16.dp)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    OutlinedTextField(
-                        value = state.searchText,
-                        onValueChange = {
-                            vm.setSearchText(it)
-                            if (!expanded) expanded = true
+                    IconButton(
+                        onClick = {
+                            tabNavigator.current = when (prevKey) {
+                                HomeTab.key -> HomeTab
+                                ProfileTab.key -> ProfileTab
+                                else -> HomeTab
+                            }
                         },
-                        singleLine = true,
-                        placeholder = { Text("Cari nama pelanggan…") },
-                        shape = RoundedCornerShape(4.dp),
                         modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth(),
-                        trailingIcon = {
-                            Row(
-                                modifier = Modifier.width(96.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                if (state.searchText.isNotEmpty()) {
-                                    IconButton(
+                            .statusBarsPadding()
+                            .padding(start = 4.dp)
+                            .size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
+                            contentDescription = "Kembali",
+                            tint = textOnBg
+                        )
+                    }
+
+                    // Judul
+                    Text(
+                        text = "Catat Air!",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = textOnBg,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                    )
+
+                    // ====== Pelanggan (dropdown) ======
+                    Text("Pelanggan", style = MaterialTheme.typography.labelLarge, color = textOnBg)
+
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = state.searchText,
+                            onValueChange = {
+                                vm.setSearchText(it)
+                                if (!expanded) expanded = true
+                            },
+                            singleLine = true,
+                            placeholder = { Text("Cari nama pelanggan…") },
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth(),
+                            trailingIcon = {
+                                Row(
+                                    modifier = Modifier.width(96.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    if (state.searchText.isNotEmpty()) {
+                                        IconButton(
+                                            onClick = {
+                                                vm.clearCustomer()
+                                                expanded = false
+                                                focusManager.clearFocus()
+                                            }
+                                        ) {
+                                            Icon(
+                                                Icons.Outlined.Close,
+                                                contentDescription = "Clear"
+                                            )
+                                        }
+                                    } else {
+                                        Spacer(Modifier.size(60.dp))
+                                    }
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                }
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = formBg,
+                                unfocusedContainerColor = formBg,
+                                disabledContainerColor = formBg,
+                                focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                focusedBorderColor = formBg,
+                                unfocusedBorderColor = formBg,
+                                disabledBorderColor = formBg,
+                                cursorColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            val items = state.filteredCustomers
+                            if (items.isEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Tidak ada pelanggan yang belum tercatat bulan ini") },
+                                    onClick = {},
+                                    enabled = false
+                                )
+                            } else {
+                                items.forEach { c ->
+                                    DropdownMenuItem(
+                                        text = { Text(c.name) },
                                         onClick = {
-                                            vm.clearCustomer()
+                                            vm.selectCustomer(c.id)
                                             expanded = false
                                             focusManager.clearFocus()
                                         }
-                                    ) {
-                                        Icon(Icons.Outlined.Close, contentDescription = "Clear")
-                                    }
-                                } else {
-                                    Spacer(Modifier.size(60.dp))
+                                    )
                                 }
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                             }
-                        },
+                        }
+                    }
+
+                    // ====== Alamat (disabled) ======
+                    Text("Alamat", style = MaterialTheme.typography.labelLarge, color = textOnBg)
+                    OutlinedTextField(
+                        value = state.alamat,
+                        onValueChange = {},
+                        readOnly = true,
+                        enabled = false,
+                        singleLine = false,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = formBg,
                             unfocusedContainerColor = formBg,
-                            disabledContainerColor = formBg,
+                            disabledContainerColor = Color.LightGray,
                             focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                alpha = 0.6f
+                            ),
                             focusedBorderColor = formBg,
                             unfocusedBorderColor = formBg,
-                            disabledBorderColor = formBg,
-                            cursorColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            disabledBorderColor = Color.LightGray,
                         )
                     )
 
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
+                    // ====== Nomor HP (disabled) ======
+                    Text("Nomor HP", style = MaterialTheme.typography.labelLarge, color = textOnBg)
+                    OutlinedTextField(
+                        value = state.hp,
+                        onValueChange = {},
+                        readOnly = true,
+                        enabled = false,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = formBg,
+                            unfocusedContainerColor = formBg,
+                            disabledContainerColor = Color.LightGray,
+                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                alpha = 0.6f
+                            ),
+                            focusedBorderColor = formBg,
+                            unfocusedBorderColor = formBg,
+                            disabledBorderColor = Color.LightGray,
+                        )
+                    )
+
+                    // ====== Meteran Bulan Lalu (disabled) ======
+                    Text(
+                        "Meteran Bulan Lalu",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = textOnBg
+                    )
+                    OutlinedTextField(
+                        value = state.meterLalu.toString(),
+                        onValueChange = {},
+                        readOnly = true,
+                        enabled = false,
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = formBg,
+                            unfocusedContainerColor = formBg,
+                            disabledContainerColor = Color.LightGray,
+                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                alpha = 0.6f
+                            ),
+                            focusedBorderColor = formBg,
+                            unfocusedBorderColor = formBg,
+                            disabledBorderColor = Color.LightGray,
+                        )
+                    )
+
+                    // ====== Foto Meteran Bulan Ini ======
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        "Foto Meteran Bulan Ini",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = textOnBg
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(formBg)
+                            .border(1.dp, Color.LightGray, RoundedCornerShape(4.dp))
+                            .clickable { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }
+                            .then(
+                                if (bitmap != null) Modifier.heightIn(max = 400.dp) else Modifier.height(
+                                    230.dp
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        val items = state.filteredCustomers
-                        if (items.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text("Tidak ada pelanggan yang belum tercatat bulan ini") },
-                                onClick = { },
-                                enabled = false
-                            )
+                        if (bitmap == null) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Outlined.PhotoCamera,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    "Ketuk untuk ambil foto",
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         } else {
-                            items.forEach { c ->
-                                DropdownMenuItem(
-                                    text = { Text(c.name) },
-                                    onClick = {
-                                        vm.selectCustomer(c.id)
-                                        expanded = false
-                                        focusManager.clearFocus()
-                                    }
+                            Image(
+                                bitmap = bitmap!!.asImageBitmap(),
+                                contentDescription = "Foto",
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxWidth().wrapContentHeight()
+                            )
+                        }
+                    }
+
+                    // Upload dari galeri
+                    FilledTonalButton(
+                        onClick = { pickImageLauncher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    ) {
+                        Icon(Icons.Outlined.Upload, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Upload file dari galeri")
+                    }
+
+                    // ====== Meteran Bulan Ini ======
+                    Text(
+                        "Meteran Bulan Ini",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = textOnBg
+                    )
+                    OutlinedTextField(
+                        value = state.meteranText,
+                        onValueChange = { vm.setMeteranText(it) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        enabled = state.selectedCustomerId.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = formBg,
+                            unfocusedContainerColor = formBg,
+                            disabledContainerColor = Color.LightGray,
+                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                alpha = 0.6f
+                            ),
+                            focusedBorderColor = formBg,
+                            unfocusedBorderColor = formBg,
+                            disabledBorderColor = Color.LightGray,
+                        )
+                    )
+
+                    // ====== Biaya Lain-lain ======
+                    AnimatedVisibility(visible = state.meteranText.isNotBlank()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                "Biaya Lain-lain (opsional)",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = textOnBg
+                            )
+                            FilledTonalButton(
+                                onClick = { vm.addOtherFee() },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            ) {
+                                Icon(Icons.Outlined.Add, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Tambah Biaya")
+                            }
+
+                            state.otherFees.forEachIndexed { index, item ->
+                                BiayaItemRow(
+                                    index = index,
+                                    fee = item,
+                                    typeOptions = state.typeOptions,
+                                    usedTypes = state.usedTypes,
+                                    onTypeChange = { newType ->
+                                        vm.updateFeeType(
+                                            item.id,
+                                            newType
+                                        )
+                                    },
+                                    onAmountChange = { digits ->
+                                        vm.updateFeeAmount(
+                                            item.id,
+                                            digits
+                                        )
+                                    },
+                                    onRemove = { vm.removeFee(item.id) },
+                                    formBg = formBg
                                 )
                             }
                         }
                     }
-                }
 
-                // ====== Alamat (disabled) ======
-                Text("Alamat", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-                OutlinedTextField(
-                    value = state.alamat,
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = false,
-                    singleLine = false,
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = formBg,
-                        unfocusedContainerColor = formBg,
-                        disabledContainerColor = Color.LightGray,
-                        focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                        focusedBorderColor = formBg,
-                        unfocusedBorderColor = formBg,
-                        disabledBorderColor = Color.LightGray,
-                    )
-                )
-
-                // ====== Nomor HP (disabled) ======
-                Text("Nomor HP", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-                OutlinedTextField(
-                    value = state.hp,
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = false,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = formBg,
-                        unfocusedContainerColor = formBg,
-                        disabledContainerColor = Color.LightGray,
-                        focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                        focusedBorderColor = formBg,
-                        unfocusedBorderColor = formBg,
-                        disabledBorderColor = Color.LightGray,
-                    )
-                )
-
-                // ====== Meteran Bulan Lalu (disabled) ======
-                Text("Meteran Bulan Lalu", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-                OutlinedTextField(
-                    value = state.meterLalu.toString(),
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = false,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = formBg,
-                        unfocusedContainerColor = formBg,
-                        disabledContainerColor = Color.LightGray,
-                        focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                        focusedBorderColor = formBg,
-                        unfocusedBorderColor = formBg,
-                        disabledBorderColor = Color.LightGray,
-                    ),
-                )
-
-                // ====== Foto Meteran Bulan Ini ======
-                Spacer(Modifier.height(3.dp))
-                Text("Foto Meteran Bulan Ini", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(formBg)
-                        .border(1.dp, Color.LightGray, RoundedCornerShape(4.dp))
-                        .clickable { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }
-                        .then(
-                            if (bitmap != null) Modifier.heightIn(max = 400.dp)
-                            else Modifier.height(230.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (bitmap == null) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Outlined.PhotoCamera,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.size(40.dp)
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                "Ketuk untuk ambil foto",
-                                color = MaterialTheme.colorScheme.secondary,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                        }
-                    } else {
-                        Image(
-                            bitmap = bitmap!!.asImageBitmap(),
-                            contentDescription = "Foto",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentHeight()
-                        )
-                    }
-                }
-
-                // Tombol upload (di bawah box)
-                FilledTonalButton(
-                    onClick = { pickImageLauncher.launch("image/*") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Icon(Icons.Outlined.Upload, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Upload file dari galeri")
-                }
-
-                // ====== Input angka meteran (trigger biaya lain-lain) ======
-                Text("Meteran Bulan Ini", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-                OutlinedTextField(
-                    value = state.meteranText,
-                    onValueChange = { vm.setMeteranText(it) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    enabled = state.selectedCustomerId.isNotBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = formBg,
-                        unfocusedContainerColor = formBg,
-                        disabledContainerColor = Color.LightGray,
-                        focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f),
-                        focusedBorderColor = formBg,
-                        unfocusedBorderColor = formBg,
-                        disabledBorderColor = Color.LightGray,
-                    ),
-                )
-
-                // ====== Biaya Lain-lain (opsional) ======
-                AnimatedVisibility(visible = state.meteranText.isNotBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            "Biaya Lain-lain (opsional)",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = textOnBg
-                        )
-
-                        FilledTonalButton(
-                            onClick = { vm.addOtherFee() },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        ) {
-                            Icon(Icons.Outlined.Add, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Tambah Biaya")
-                        }
-
-                        state.otherFees.forEachIndexed { index, item ->
-                            BiayaItemRow(
-                                index = index,
-                                fee = item,
-                                typeOptions = state.typeOptions,
-                                usedTypes = state.usedTypes,
-                                onTypeChange = { newType -> vm.updateFeeType(item.id, newType) },
-                                onAmountChange = { digits -> vm.updateFeeAmount(item.id, digits) },
-                                onRemove = { vm.removeFee(item.id) },
-                                formBg = formBg
-                            )
-                        }
-                    }
-                }
-
-                // ====== Total Harga Bayar (readonly) ======
-                Text("Total Harga Bayar", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-                OutlinedTextField(
-                    value = formatRupiah(state.totalBayar),
-                    onValueChange = {},
-                    readOnly = true,
-                    enabled = false,
-                    singleLine = true,
-                    shape = RoundedCornerShape(4.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = formBg,
-                        unfocusedContainerColor = formBg,
-                        disabledContainerColor = Color.LightGray,
-                        focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                        focusedBorderColor = formBg,
-                        unfocusedBorderColor = formBg,
-                        disabledBorderColor = Color.LightGray
-                    ),
-                )
-
-                // ====== Tombol simpan ======
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = { vm.saveRecord(bitmap) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = green,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
+                    // ====== Total ======
                     Text(
-                        if (state.isLoading) "Memuat..." else "Simpan",
-                        fontWeight = FontWeight.SemiBold
+                        "Total Harga Bayar",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = textOnBg
+                    )
+                    OutlinedTextField(
+                        value = formatRupiah(state.totalBayar),
+                        onValueChange = {},
+                        readOnly = true,
+                        enabled = false,
+                        singleLine = true,
+                        shape = RoundedCornerShape(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = formBg,
+                            unfocusedContainerColor = formBg,
+                            disabledContainerColor = Color.LightGray,
+                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                alpha = 0.8f
+                            ),
+                            focusedBorderColor = formBg,
+                            unfocusedBorderColor = formBg,
+                            disabledBorderColor = Color.LightGray
+                        )
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = { 
+        val current = state.meteranText.filter(Char::isDigit).toLongOrNull()
+        val last = state.meterLalu.toLong()
+
+        if (current == null) {
+            scope.launch { snackbarHostState.showSnackbar("Isi meteran bulan ini dengan angka yang valid") }
+            return@Button
+        }
+        if (current < last) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    "Meteran bulan ini tidak boleh lebih kecil dari bulan lalu (${state.meterLalu})"
+                )
+            }
+            return@Button
+        }
+        vm.saveRecord(bitmap)
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = green, contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            if (state.isLoading) "Memuat..." else "Simpan",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+                }
+                if (showFullLoading) {
+                    Surface(
+                        modifier = Modifier.matchParentSize(),
+                        color = MaterialTheme.colorScheme.background.copy(alpha = 0.92f)
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    trackColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
+                                    strokeWidth = 3.dp
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                Text("Memuat data…")
+                            }
+                        }
+                    }
+                } else {
+                    PullRefreshIndicator(
+                        refreshing = isRefreshing,
+                        state = pullState,
+                        modifier = Modifier.align(Alignment.TopCenter)
                     )
                 }
-
-                Spacer(Modifier.height(24.dp))
             }
         }
     }
@@ -534,7 +638,11 @@ private fun BiayaItemRow(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Biaya #${index + 1}", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                Text(
+                    "Biaya #${index + 1}",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.weight(1f)
+                )
                 IconButton(onClick = onRemove) {
                     Icon(Icons.Outlined.Delete, contentDescription = "Hapus")
                 }
@@ -579,7 +687,6 @@ private fun BiayaItemRow(
                 }
             }
 
-            // amountDigits = digit-only
             OutlinedTextField(
                 value = amountDigits,
                 onValueChange = { input ->
@@ -622,6 +729,7 @@ private class RupiahVisualTransformation : VisualTransformation {
                 val k = offset.coerceIn(0, n)
                 return orig2trans[k]
             }
+
             override fun transformedToOriginal(offset: Int): Int {
                 val t = offset.coerceAtLeast(0)
                 var k = 0

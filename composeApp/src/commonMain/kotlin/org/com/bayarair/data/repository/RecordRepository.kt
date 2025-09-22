@@ -15,24 +15,32 @@ import org.com.bayarair.data.dto.unwrapFlexible
 import org.com.bayarair.data.dto.HargaData
 import org.com.bayarair.data.dto.PelangganDto
 import org.com.bayarair.data.dto.SaveRecordResponse
+import org.com.bayarair.data.dto.BaseResponse
+import org.com.bayarair.data.dto.ApiException
 import org.com.bayarair.data.model.Customer
 import org.com.bayarair.data.model.toDomain
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonElement
 
 class RecordRepository(private val client: HttpClient) {
-    suspend fun getHarga(): Result<Long> = runCatching {
-        val res = client.get("$BASE_URL/harga") {
-            accept(ContentType.Application.Json)
+    suspend fun getHarga(): Result<HargaData> = runCatching {
+        val res = client.get("$BASE_URL/harga") { accept(ContentType.Application.Json) }
+        res.unwrapFlexible<HargaData>()
+    }.mapCatching { env ->
+        when {
+            env.status && env.data != null -> env.data
+            else -> throw ApiException(200, env.message.ifBlank { "Gagal memuat data harga" })
         }
-        res.unwrapFlexible<HargaData>().harga
     }
 
     suspend fun getPelanggan(): Result<List<PelangganDto>> = runCatching {
-        val res = client.get("$BASE_URL/pelanggan") {
-            accept(ContentType.Application.Json)
-        }
+        val res = client.get("$BASE_URL/pelanggan") { accept(ContentType.Application.Json) }
         res.unwrapFlexible<List<PelangganDto>>()
+    }.mapCatching { env ->
+        when {
+            env.status && env.data != null -> env.data
+            else -> throw ApiException(200, env.message.ifBlank { "Gagal memuat data pelanggan" })
+        }
     }
 
     suspend fun getCustomers(): Result<List<Customer>> =
@@ -44,7 +52,7 @@ class RecordRepository(private val client: HttpClient) {
         totalAmount: Long,
         evidence: ByteArray,
         otherFees: Map<String, Long?>
-    ): Result<SaveRecordResponse<JsonElement>> = runCatching {
+    ): Result<BaseResponse<SaveRecordResponse<JsonElement>>> = runCatching {
         client.submitFormWithBinaryData(
             url = "$BASE_URL/pencatatan",
             formData = formData {

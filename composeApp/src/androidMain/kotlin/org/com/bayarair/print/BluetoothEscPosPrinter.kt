@@ -2,6 +2,8 @@ package org.com.bayarair.print
 
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.os.Build
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -12,8 +14,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import android.util.Log
-import android.os.Build
 
 private const val TAG = "ReceiptPrint"
 
@@ -33,7 +33,10 @@ class BluetoothEscPosPrinter(
         // 2) Render PDF → Bitmaps
         val tRenderStart = System.currentTimeMillis()
         val pages = renderPdfToBitmaps(context, pdfFile)
-        Log.d(TAG, "PDF rendered | pages=${pages.size} in ${System.currentTimeMillis() - tRenderStart} ms")
+        Log.d(
+            TAG,
+            "PDF rendered | pages=${pages.size} in ${System.currentTimeMillis() - tRenderStart} ms"
+        )
 
         // 3) Setup Bluetooth
         val btManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
@@ -45,7 +48,10 @@ class BluetoothEscPosPrinter(
             if (Build.VERSION.SDK_INT < 31) {
                 adapter.cancelDiscovery()
             } else {
-                Log.d(TAG, "Skipping cancelDiscovery() on API >= 31 to avoid BLUETOOTH_SCAN requirement")
+                Log.d(
+                    TAG,
+                    "Skipping cancelDiscovery() on API >= 31 to avoid BLUETOOTH_SCAN requirement"
+                )
             }
 
             Log.d(TAG, "Connecting to printer: name=${device.name} address=${device.address}")
@@ -59,7 +65,10 @@ class BluetoothEscPosPrinter(
 
                 pages.forEachIndexed { index, bmp ->
                     val (widthBytes, raster) = bitmapToEscPosRasterBytes(bmp)
-                    Log.d(TAG, "Sending page ${index + 1}/${pages.size} | h=${bmp.height} widthBytes=$widthBytes rasterSize=${raster.size}")
+                    Log.d(
+                        TAG,
+                        "Sending page ${index + 1}/${pages.size} | h=${bmp.height} widthBytes=$widthBytes rasterSize=${raster.size}"
+                    )
                     os.write(EscPos.rasterBitImage(widthBytes, bmp.height, raster))
                     os.write(EscPos.LINE_FEED)
                     if (index < pages.lastIndex) os.write(EscPos.LINE_FEED)

@@ -1,10 +1,17 @@
 package org.com.bayarair.presentation.screens
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -13,12 +20,12 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import org.jetbrains.compose.resources.painterResource
 import org.com.bayarair.Res
 import org.com.bayarair.logo
 import org.com.bayarair.presentation.navigation.TabContainer
-import org.com.bayarair.presentation.viewmodel.SplashViewModel
 import org.com.bayarair.presentation.viewmodel.SplashState
+import org.com.bayarair.presentation.viewmodel.SplashViewModel
+import org.jetbrains.compose.resources.painterResource
 
 object SplashScreen : Screen {
     @Composable
@@ -29,8 +36,8 @@ object SplashScreen : Screen {
 
         LaunchedEffect(state) {
             when (state) {
-                SplashState.GoLogin -> navigator.replace(LoginScreen)
-                SplashState.GoHome  -> navigator.replace(TabContainer)
+                SplashState.GoLogin -> navigator.replace(LoginScreen())
+                SplashState.GoHome -> navigator.replace(TabContainer())
                 SplashState.Loading -> Unit
             }
         }

@@ -3,6 +3,7 @@ package org.com.bayarair.presentation.viewmodel
 import android.graphics.Bitmap
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -19,35 +20,60 @@ class RecordScreenModel(
     private val _events = MutableSharedFlow<RecordEvent>()
     val events: SharedFlow<RecordEvent> = _events.asSharedFlow()
 
-    fun load() {
-        mutableState.update { it.copy(isLoading = true) }
-        screenModelScope.launch {
-            val hargaDef = async { repo.getHarga() }
-            val custDef = async { repo.getCustomers() }
+    private var currentLoad: Job? = null
 
-            val hargaRes = hargaDef.await()
-            val custRes = custDef.await()
+    fun load(minMs: Long = 0L): Job {
+        currentLoad?.cancel()
+        val job =
+            screenModelScope.launch {
+                _events.emit(RecordEvent.ShowLoading)
+                try {
+                    val elapsed =
+                        kotlin.system.measureTimeMillis {
+                            val hargaDef = async { repo.getHarga() }
+                            val custDef = async { repo.getCustomers() }
 
-            hargaRes
-                .onSuccess { harga ->
-                    mutableState.update { it.copy(hargaPerM3 = harga) }
-                }.onFailure {
-                    _events.emit(
-                        RecordEvent.ShowSnackbar(
-                            it.message ?: "Harga per kubik dan biaya admin belum dibuat, silakan hubungi admin",
-                        ),
-                    )
+                            val hargaRes = hargaDef.await()
+                            val custRes = custDef.await()
+
+                            hargaRes
+                                .onSuccess { harga ->
+                                    mutableState.update {
+                                        it.copy(
+                                            air = harga.air,
+                                            admin = harga.admin,
+                                        )
+                                    }
+                                }.onFailure { e ->
+                                    _events.emit(
+                                        RecordEvent.ShowSnackbar(
+                                            e.message
+                                                ?: "Data harga layanan belum ada, silakan hubungi admin.",
+                                        ),
+                                    )
+                                }
+
+                            custRes
+                                .onSuccess { list ->
+                                    mutableState.update { it.copy(customers = list) }
+                                }.onFailure { e ->
+                                    _events.emit(
+                                        RecordEvent.ShowSnackbar(
+                                            e.message
+                                                ?: "Belum ada pelanggan yang terdaftar, silakan hubungi admin.",
+                                        ),
+                                    )
+                                }
+                        }
+                    val remain = (minMs - elapsed).coerceAtLeast(0L)
+                    if (remain > 0) kotlinx.coroutines.delay(remain)
+                } finally {
+                    mutableState.update { it.copy(isLoading = false) }
+                    _events.emit(RecordEvent.Idle)
                 }
-
-            custRes
-                .onSuccess { list ->
-                    mutableState.update { it.copy(customers = list) }
-                }.onFailure {
-                    _events.emit(RecordEvent.ShowSnackbar(it.message ?: "Belum ada pelanggan yang terdaftar, silakan hubungi admin"))
-                }
-
-            mutableState.update { it.copy(isLoading = false) }
-        }
+            }
+        currentLoad = job
+        return job
     }
 
     // ------- Pelanggan -------
@@ -74,7 +100,7 @@ class RecordScreenModel(
     // ------- Meteran -------
     fun setMeteranText(raw: String) = mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
 
-    fun setTariff(newTariff: Long) = mutableState.update { it.copy(hargaPerM3 = newTariff) }
+    fun setTariff(newTariff: Long) = mutableState.update { it.copy(air = newTariff) }
 
     // ------- Biaya lain-lain -------
     fun addOtherFee() {
@@ -123,67 +149,95 @@ class RecordScreenModel(
     fun removeFee(id: Long) = mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
 
     fun saveRecord(bitmap: Bitmap?) {
-        try {
-            println("tes")
-            screenModelScope.launch {
-                mutableState.update { it.copy(isLoading = true) }
-                if (state.value.hargaPerM3 <= 0L) {
-                    val hargaRes = repo.getHarga()
-                    if (hargaRes.isFailure) {
-                        val msg =
-                            hargaRes.exceptionOrNull()?.message
-                                ?: "Harga kubik dan biaya admin belum dibuat, silakan hubungi admin"
-                        _events.emit(RecordEvent.ShowSnackbar(msg))
-                        return@launch
-                    } else {
-                        val newHarga = hargaRes.getOrThrow()
-                        mutableState.update { it.copy(hargaPerM3 = newHarga) }
-                    }
-                }
-
+        screenModelScope.launch {
+            _events.emit(RecordEvent.ShowLoading) // nyalakan overlay
+            try {
                 val st = state.value
+
+                // validasi dasar
+                if (st.air <= 0L || st.admin <= 0L) {
+                    _events.emit(RecordEvent.ShowSnackbar("Data harga layanan belum ada, silakan hubungi admin."))
+                    _events.emit(RecordEvent.Idle) // matikan overlay
+                    return@launch
+                }
                 if (st.selectedCustomerId.isBlank()) {
-                    screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Pilih pelanggan dulu")) }
+                    _events.emit(RecordEvent.ShowSnackbar("Pilih pelanggan dulu"))
+                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
                 if (st.meteranText.isBlank()) {
-                    screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Isi meteran bulan ini")) }
-                    return@launch
-                }
-                if (bitmap == null) {
-                    screenModelScope.launch { _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran")) }
+                    _events.emit(RecordEvent.ShowSnackbar("Isi meteran bulan ini"))
+                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
 
+                // validasi meteran >= meterLalu
+                val current = st.meteranText.filter(Char::isDigit).toLongOrNull()
+                if (current == null) {
+                    _events.emit(RecordEvent.ShowSnackbar("Meteran tidak valid"))
+                    _events.emit(RecordEvent.Idle)
+                    return@launch
+                }
+                if (current < st.meterLalu.toLong()) {
+                    _events.emit(RecordEvent.ShowSnackbar("Meteran bulan ini tidak boleh lebih kecil dari bulan lalu (${st.meterLalu})"))
+                    _events.emit(RecordEvent.Idle)
+                    return@launch
+                }
+
+                if (bitmap == null) {
+                    _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran"))
+                    _events.emit(RecordEvent.Idle)
+                    return@launch
+                }
+
+                // siapin foto
                 val stream = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
                 val photoBytes = stream.toByteArray()
 
-                val fees =
-                    st.otherFees.associate {
-                        it.type!! to (it.amount.toLongOrNull() ?: 0L)
-                    }
+                val fees: Map<String, Long> =
+                    st.otherFees
+                        .mapNotNull { f -> f.type?.let { it to (f.amount.toLongOrNull() ?: 0L) } }
+                        .toMap()
 
+                // simpan
                 repo
                     .saveRecord(
                         customerId = st.selectedCustomerId,
-                        meter = st.meteranText.toInt(),
+                        meter = current.toInt(),
                         totalAmount = st.totalBayar,
                         evidence = photoBytes,
                         otherFees = fees,
-                    ).onSuccess { response ->
-                        _events.emit(RecordEvent.ShowSnackbar("Data berhasil disimpan"))
-                        _events.emit(RecordEvent.ClearImage)
-                        clearCustomer()
-                        mutableState.update { it.copy(meteranText = "", otherFees = emptyList()) }
-                        _events.emit(RecordEvent.PrintReceipt(response.struk.url, response.struk.filename))
-                    }.onFailure {
-                        _events.emit(RecordEvent.ShowSnackbar(it.message ?: "Gagal menyimpan"))
+                    ).onSuccess { env ->
+                        _events.emit(RecordEvent.ShowSnackbar(env.message))
+                        resetForm() // bersihkan form di VM
+                        _events.emit(RecordEvent.Saved(env.data!!.struk.url)) // NAVIGASI (overlay tetap ON)
+                        // PERHATIKAN: TIDAK mengirim Idle di sini
+                    }.onFailure { e ->
+                        _events.emit(RecordEvent.ShowSnackbar(e.message ?: "Gagal menyimpan"))
+                        _events.emit(RecordEvent.Idle) // matikan overlay saat gagal
                     }
+            } catch (t: Throwable) {
+                _events.emit(RecordEvent.ShowSnackbar(t.message ?: "Terjadi kesalahan"))
+                _events.emit(RecordEvent.Idle) // matikan overlay saat error
+            } finally {
+                // status internal tombol dsb (tidak memengaruhi overlay)
+                mutableState.update { it.copy(isLoading = false) }
             }
-        } finally {
-            println("tes2")
-            mutableState.update { it.copy(isLoading = false) }
+        }
+    }
+
+    fun resetForm() {
+        mutableState.update {
+            it.copy(
+                searchText = "",
+                selectedCustomerId = "",
+                alamat = "",
+                hp = "",
+                meterLalu = 0,
+                meteranText = "",
+                otherFees = emptyList(),
+            )
         }
     }
 }
@@ -198,7 +252,8 @@ data class OtherFee(
 
 data class RecordState(
     val isLoading: Boolean = false,
-    val hargaPerM3: Long = 0L,
+    val air: Long = 0L,
+    val admin: Long = 0L,
     val customers: List<Customer> = emptyList(),
     val searchText: String = "",
     val selectedCustomerId: String = "",
@@ -223,7 +278,8 @@ data class RecordState(
     val pemakaian: Long
         get() = ((meteranText.toLongOrNull() ?: 0L) - meterLalu.toLong()).coerceAtLeast(0L)
 
-    val subtotalAir: Long get() = pemakaian * hargaPerM3
+    val subtotalAir: Long
+        get() = (pemakaian * air).let { if (it > 0L) it + admin else it }
     val totalLainLain: Long get() = otherFees.sumOf { it.amount.toLongOrNull() ?: 0L }
     val totalBayar: Long get() = subtotalAir + totalLainLain
 }
@@ -233,10 +289,16 @@ sealed interface RecordEvent {
         val message: String,
     ) : RecordEvent
 
-    object ClearImage : RecordEvent
-
-    data class PrintReceipt(
+    data class Saved(
         val url: String,
-        val filename: String,
     ) : RecordEvent
+
+//     data class PrintReceipt(
+//         val url: String,
+//         val filename: String,
+//     ) : RecordEvent
+
+    data object ShowLoading : RecordEvent
+
+    data object Idle : RecordEvent
 }

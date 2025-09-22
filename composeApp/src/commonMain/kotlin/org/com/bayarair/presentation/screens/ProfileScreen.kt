@@ -1,45 +1,37 @@
 package org.com.bayarair.presentation.screens
 
-import cafe.adriel.voyager.core.screen.Screen
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import kotlinx.coroutines.flow.collectLatest
+import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import org.com.bayarair.presentation.viewmodel.AuthViewModel
-import org.com.bayarair.presentation.viewmodel.AuthEvent
 
 object ProfileScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
-        val navigator = LocalNavigator.currentOrThrow
         val authVm: AuthViewModel = koinScreenModel()
         val snackbarHost = remember { SnackbarHostState() }
-        val rootNavigator = remember(navigator) {
-            generateSequence(navigator) { it.parent }.last()
-        }
-
-        LaunchedEffect(Unit) {
-            authVm.events.collectLatest { ev ->
-                when (ev) {
-                    is AuthEvent.LogoutError -> snackbarHost.showSnackbar(ev.message)
-                    AuthEvent.LoggedOut -> rootNavigator.replaceAll(LoginScreen)
-                }
-            }
-        }
 
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHost) }
-        ) { padding ->
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize(),

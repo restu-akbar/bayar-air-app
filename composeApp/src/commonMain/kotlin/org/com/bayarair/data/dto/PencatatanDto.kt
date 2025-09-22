@@ -1,4 +1,3 @@
-
 package org.com.bayarair.data.dto
 
 import kotlinx.serialization.SerialName
@@ -17,7 +16,8 @@ data class PelangganDto(
 
 @Serializable
 data class HargaData(
-    val harga: Long,
+    @SerialName("air") val air: Long,
+    @SerialName("admin") val admin: Long,
 )
 
 @Serializable

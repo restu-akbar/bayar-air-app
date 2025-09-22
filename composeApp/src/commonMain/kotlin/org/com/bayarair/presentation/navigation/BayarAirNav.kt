@@ -21,9 +21,10 @@ fun BayarAirNav(appEvents: AppEvents) {
             appEvents.events.collect { event ->
                 when (event) {
                     is AppEvent.Logout -> {
-                      navigator.replaceAll(LoginScreen)
-                      snackbarHostState.showSnackbar("Anda telah login di perangkat lain. Perlu login ulang")
+                        navigator.replaceAll(LoginScreen())
+                        event.message?.let { snackbarHostState.showSnackbar(it) }
                     }
+
                     is AppEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
                 }
             }

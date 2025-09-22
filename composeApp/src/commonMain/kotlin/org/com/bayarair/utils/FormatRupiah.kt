@@ -8,7 +8,9 @@ fun groupThousands(digits: String): String {
     var c = 0
     for (i in digits.length - 1 downTo 0) {
         sb.append(digits[i]); c++
-        if (c == 3 && i != 0) { sb.append('.') ; c = 0 }
+        if (c == 3 && i != 0) {
+            sb.append('.'); c = 0
+        }
     }
     return sb.reverse().toString()
 }

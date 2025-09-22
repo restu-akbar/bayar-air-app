@@ -1,10 +1,8 @@
 package org.com.bayarair.presentation.viewmodel
 
 import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.launch
 import org.com.bayarair.data.repository.AuthRepository
 import org.com.bayarair.data.token.TokenHandler
 
