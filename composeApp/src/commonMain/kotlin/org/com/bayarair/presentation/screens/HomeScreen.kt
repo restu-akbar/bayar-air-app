@@ -231,22 +231,12 @@ fun StatisticSection() {
                 label = "Jan",
                 values = listOf(
                     Bars.Data(
-                        label = "Linux",
-                        value = -50.0,
+                        label = "Pelanggan",
+                        value = 12.0,
                         color = Brush.verticalGradient(
                             listOf(
-                                Color(0xFFE65100),
-                                Color(0xFFFFD54F),
-                            )
-                        )
-                    ),
-                    Bars.Data(
-                        label = "Windows",
-                        value = 100.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF7E57C2),
-                                Color(0xFF7986CB),
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
                             )
                         )
                     ),
@@ -256,22 +246,12 @@ fun StatisticSection() {
                 label = "Feb",
                 values = listOf(
                     Bars.Data(
-                        label = "Linux",
-                        value = 25.0,
+                        label = "Pelanggan",
+                        value = 15.0,
                         color = Brush.verticalGradient(
                             listOf(
-                                Color(0xFFE65100),
-                                Color(0xFFFFD54F),
-                            )
-                        )
-                    ),
-                    Bars.Data(
-                        label = "Windows",
-                        value = 45.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF7E57C2),
-                                Color(0xFF7986CB),
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
                             )
                         )
                     ),
@@ -281,82 +261,213 @@ fun StatisticSection() {
                 label = "Mar",
                 values = listOf(
                     Bars.Data(
-                        label = "Linux",
-                        value = 60.0,
+                        label = "Pelanggan",
+                        value = 20.0,
                         color = Brush.verticalGradient(
                             listOf(
-                                Color(0xFFE65100),
-                                Color(0xFFFFD54F),
-                            )
-                        )
-                    ),
-                    Bars.Data(
-                        label = "Windows",
-                        value = 50.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF7E57C2),
-                                Color(0xFF7986CB),
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
                             )
                         )
                     ),
                 )
-            )
+            ),
+            Bars(
+                label = "Apr",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 20.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
+            Bars(
+                label = "Mei",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 15.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
+            Bars(
+                label = "Jun",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 22.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
+            Bars(
+                label = "Jul",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 23.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
+            Bars(
+                label = "Aug",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 25.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
+            Bars(
+                label = "Sep",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 30.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
+            Bars(
+                label = "Oct",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 20.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
+            Bars(
+                label = "Nov",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 22.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
+            Bars(
+                label = "Des",
+                values = listOf(
+                    Bars.Data(
+                        label = "Pelanggan",
+                        value = 20.0,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    ),
+                )
+            ),
         )
     }
-    Card(modifier=Modifier.height(270.dp).fillMaxWidth()
-        .border(2.dp,Color.Transparent, RoundedCornerShape(12.dp)),
-        elevation = CardDefaults.elevatedCardElevation(2.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xff2D2D2D)
-        )
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center
     ) {
-        Box(modifier = Modifier.fillMaxSize().padding(vertical = 12.dp)){
-            ColumnChart(
-                modifier= Modifier
-                    .fillMaxSize()
-                    .padding(start = 22.dp, end = 12.dp)
-                ,
-                data = data,
-                barProperties = BarProperties(
-                    cornerRadius = Bars.Data.Radius.Rectangle(topRight = 6.dp, topLeft = 6.dp),
-                    spacing = 3.dp,
-                    thickness = 20.dp
-                ),
-                indicatorProperties = HorizontalIndicatorProperties(
-                    textStyle = TextStyle(fontSize = 12.sp, color = Color.White),
-                    count = IndicatorCount.CountBased(count = 4),
-                    position = IndicatorPosition.Horizontal.Start,
-                ),
-                gridProperties = columnGridProperties,
-                labelProperties = LabelProperties(
-                    enabled = true,
-                    textStyle = TextStyle(fontSize = 12.sp, color = Color.White)
-                ),
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                ),
-                animationMode = AnimationMode.Together(delayBuilder = {it*100L}),
-                animationDelay = 300,
-                popupProperties = PopupProperties(
-                    textStyle = TextStyle(
-                        fontSize = 11.sp,
-                        color = Color.White,
-                    ),
-                    contentBuilder = { dataIndex, valueIndex, value ->
-                        value.format(1) + " Million" + " - dataIdx: " + dataIndex + ", valueIdx: " + valueIndex
-                    },
-                    containerColor = Color(0xff414141),
-                ),
-                labelHelperProperties = LabelHelperProperties(textStyle = TextStyle(fontSize = 12.sp, color = Color.White)),
-                onBarClick = { popupData ->
-                    println(popupData.bar)
-                },
-                onBarLongClick = { popupData ->
-                    println("long: ${popupData.bar}")
-                }
+        Card(modifier=Modifier.height(270.dp).fillMaxWidth()
+            .border(2.dp,Color.Transparent, RoundedCornerShape(12.dp)),
+            elevation = CardDefaults.elevatedCardElevation(2.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
             )
+        ) {
+            Box(modifier = Modifier.fillMaxSize().padding(vertical = 12.dp)){
+                ColumnChart(
+                    modifier= Modifier
+                        .fillMaxSize()
+                        .padding(start = 22.dp, end = 12.dp)
+                    ,
+                    data = data,
+                    barProperties = BarProperties(
+                        cornerRadius = Bars.Data.Radius.Rectangle(topRight = 6.dp, topLeft = 6.dp),
+                        spacing = 1.dp,
+                        thickness = 20.dp
+                    ),
+                    indicatorProperties = HorizontalIndicatorProperties(
+                        textStyle = TextStyle(fontSize = 12.sp, color = Color.Black),
+                        count = IndicatorCount.CountBased(count = 4),
+                        position = IndicatorPosition.Horizontal.Start,
+                    ),
+                    gridProperties = columnGridProperties,
+                    labelProperties = LabelProperties(
+                        enabled = true,
+                        textStyle = TextStyle(fontSize = 12.sp, color = Color.Black)
+                    ),
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    animationMode = AnimationMode.Together(delayBuilder = {it*100L}),
+                    animationDelay = 300,
+                    popupProperties = PopupProperties(
+                        textStyle = TextStyle(
+                            fontSize = 11.sp,
+                            color = Color.White,
+                        ),
+                        contentBuilder = { dataIndex, valueIndex, value ->
+                            value.format(1) + " Million" + " - dataIdx: " + dataIndex + ", valueIdx: " + valueIndex
+                        },
+                        containerColor = Color(0xff414141),
+                    ),
+                    labelHelperProperties = LabelHelperProperties(textStyle = TextStyle(fontSize = 12.sp, color = Color.Black)),
+                    onBarClick = { popupData ->
+                        println(popupData.bar)
+                    },
+                    onBarLongClick = { popupData ->
+                        println("long: ${popupData.bar}")
+                    }
+                )
+            }
         }
     }
+
 }
