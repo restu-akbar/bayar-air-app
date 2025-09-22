@@ -2,6 +2,8 @@ package org.com.bayarair.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import cafe.adriel.voyager.core.model.ScreenModel
+import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -10,7 +12,7 @@ import org.com.bayarair.data.repository.MeterRecordRepository
 
 class HomeViewModel(
     private val  repository: MeterRecordRepository,
-) : ViewModel() {
+) : ScreenModel {
     private val _records = MutableStateFlow<List<MeterRecord>>(emptyList())
     val records: StateFlow<List<MeterRecord>> = _records
 
@@ -21,7 +23,7 @@ class HomeViewModel(
     val error: StateFlow<String?> = _error
 
     fun loadHistory() {
-        viewModelScope.launch {
+        screenModelScope.launch {
             _loading.value = true
             repository.getRecords()
                 .onSuccess { data ->
@@ -35,7 +37,7 @@ class HomeViewModel(
     }
 
     fun getUserName() {
-        viewModelScope.launch {
+        screenModelScope.launch {
             _loading.value = true
             repository.getRecords()
                 .onSuccess { data ->
