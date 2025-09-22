@@ -51,16 +51,16 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
-import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import kotlinx.coroutines.launch
+import org.com.bayarair.presentation.component.loadingOverlay
 import org.com.bayarair.presentation.navigation.HomeTab
 import org.com.bayarair.presentation.navigation.LocalPreviousTabKey
 import org.com.bayarair.presentation.navigation.ProfileTab
 import org.com.bayarair.presentation.viewmodel.OtherFee
 import org.com.bayarair.presentation.viewmodel.RecordEvent
 import org.com.bayarair.presentation.viewmodel.RecordScreenModel
-import org.com.bayarair.utils.LocalReceiptPrinter
 import org.com.bayarair.utils.formatRupiah
 import org.com.bayarair.utils.groupThousands
 import java.io.File
@@ -81,10 +81,10 @@ object RecordScreen : Screen {
         var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
         val snackbarHostState = remember { SnackbarHostState() }
-        val printer = LocalReceiptPrinter.current
         val scope = rememberCoroutineScope()
 
         var showFullLoading by remember { mutableStateOf(false) }
+        var loadMessage by remember { mutableStateOf("") }
 
         LaunchedEffect(Unit) { vm.load(minMs = 1000).join() }
 
@@ -96,21 +96,12 @@ object RecordScreen : Screen {
                         bitmap = null
                         navigator?.replaceAll(RecordDetailScreen(ev.url, false))
                     }
-//                     is RecordEvent.PrintReceipt -> {
-//                         val p = printer
-//                         if (p == null) {
-//                             snackbarHostState.showSnackbar("Fitur printer belum tersedia di device ini")
-//                         } else {
-//                             scope.launch {
-//                                 runCatching { p.printPdfFromUrl(ev.url) }
-//                                     .onFailure { throwable ->
-//                                         snackbarHostState.showSnackbar("Gagal cetak: ${throwable.message ?: "Unknown error"}")
-//                                     }
-//                             }
-//                         }
-//                     }
 
-                    is RecordEvent.ShowLoading -> showFullLoading = true
+                    is RecordEvent.ShowLoading -> {
+                        showFullLoading = true
+                        loadMessage = ev.message
+                    }
+
                     is RecordEvent.Idle -> showFullLoading = false
                 }
             }
@@ -547,23 +538,21 @@ object RecordScreen : Screen {
 
                     Spacer(Modifier.height(8.dp))
                     Button(
-                        onClick = { 
-        val current = state.meteranText.filter(Char::isDigit).toLongOrNull()
-        val last = state.meterLalu.toLong()
+                        onClick = {
+                            val current = state.meteranText.filter(Char::isDigit).toLongOrNull()
+                            when {
+                                current == null -> scope.launch {
+                                    snackbarHostState.showSnackbar("Meteran tidak valid")
+                                }
 
-        if (current == null) {
-            scope.launch { snackbarHostState.showSnackbar("Isi meteran bulan ini dengan angka yang valid") }
-            return@Button
-        }
-        if (current < last) {
-            scope.launch {
-                snackbarHostState.showSnackbar(
-                    "Meteran bulan ini tidak boleh lebih kecil dari bulan lalu (${state.meterLalu})"
-                )
-            }
-            return@Button
-        }
-        vm.saveRecord(bitmap)
+                                current < state.meterLalu.toLong() -> scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        "Meteran bulan ini tidak boleh lebih kecil dari bulan lalu (${state.meterLalu})"
+                                    )
+                                }
+
+                                else -> vm.saveRecord(bitmap)
+                            }
                         },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -572,7 +561,7 @@ object RecordScreen : Screen {
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            if (state.isLoading) "Memuat..." else "Simpan",
+                            if (state.isLoading) "Menyimpan..." else "Simpan",
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -580,22 +569,7 @@ object RecordScreen : Screen {
                     Spacer(Modifier.height(24.dp))
                 }
                 if (showFullLoading) {
-                    Surface(
-                        modifier = Modifier.matchParentSize(),
-                        color = MaterialTheme.colorScheme.background.copy(alpha = 0.92f)
-                    ) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    trackColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
-                                    strokeWidth = 3.dp
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                Text("Memuat data…")
-                            }
-                        }
-                    }
+                    loadingOverlay(loadMessage)
                 } else {
                     PullRefreshIndicator(
                         refreshing = isRefreshing,
@@ -742,4 +716,3 @@ private class RupiahVisualTransformation : VisualTransformation {
         return TransformedText(AnnotatedString(out), mapping)
     }
 }
-

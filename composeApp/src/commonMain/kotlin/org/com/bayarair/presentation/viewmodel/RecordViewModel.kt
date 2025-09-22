@@ -26,7 +26,7 @@ class RecordScreenModel(
         currentLoad?.cancel()
         val job =
             screenModelScope.launch {
-                _events.emit(RecordEvent.ShowLoading)
+                _events.emit(RecordEvent.ShowLoading())
                 try {
                     val elapsed =
                         kotlin.system.measureTimeMillis {
@@ -150,14 +150,12 @@ class RecordScreenModel(
 
     fun saveRecord(bitmap: Bitmap?) {
         screenModelScope.launch {
-            _events.emit(RecordEvent.ShowLoading) // nyalakan overlay
+            _events.emit(RecordEvent.ShowLoading("Menyimpan Data"))
             try {
                 val st = state.value
-
-                // validasi dasar
                 if (st.air <= 0L || st.admin <= 0L) {
                     _events.emit(RecordEvent.ShowSnackbar("Data harga layanan belum ada, silakan hubungi admin."))
-                    _events.emit(RecordEvent.Idle) // matikan overlay
+                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
                 if (st.selectedCustomerId.isBlank()) {
@@ -171,7 +169,6 @@ class RecordScreenModel(
                     return@launch
                 }
 
-                // validasi meteran >= meterLalu
                 val current = st.meteranText.filter(Char::isDigit).toLongOrNull()
                 if (current == null) {
                     _events.emit(RecordEvent.ShowSnackbar("Meteran tidak valid"))
@@ -190,7 +187,6 @@ class RecordScreenModel(
                     return@launch
                 }
 
-                // siapin foto
                 val stream = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
                 val photoBytes = stream.toByteArray()
@@ -200,7 +196,6 @@ class RecordScreenModel(
                         .mapNotNull { f -> f.type?.let { it to (f.amount.toLongOrNull() ?: 0L) } }
                         .toMap()
 
-                // simpan
                 repo
                     .saveRecord(
                         customerId = st.selectedCustomerId,
@@ -210,18 +205,16 @@ class RecordScreenModel(
                         otherFees = fees,
                     ).onSuccess { env ->
                         _events.emit(RecordEvent.ShowSnackbar(env.message))
-                        resetForm() // bersihkan form di VM
-                        _events.emit(RecordEvent.Saved(env.data!!.struk.url)) // NAVIGASI (overlay tetap ON)
-                        // PERHATIKAN: TIDAK mengirim Idle di sini
+                        resetForm()
+                        _events.emit(RecordEvent.Saved(env.data!!.struk.url))
                     }.onFailure { e ->
                         _events.emit(RecordEvent.ShowSnackbar(e.message ?: "Gagal menyimpan"))
-                        _events.emit(RecordEvent.Idle) // matikan overlay saat gagal
+                        _events.emit(RecordEvent.Idle)
                     }
             } catch (t: Throwable) {
                 _events.emit(RecordEvent.ShowSnackbar(t.message ?: "Terjadi kesalahan"))
-                _events.emit(RecordEvent.Idle) // matikan overlay saat error
+                _events.emit(RecordEvent.Idle)
             } finally {
-                // status internal tombol dsb (tidak memengaruhi overlay)
                 mutableState.update { it.copy(isLoading = false) }
             }
         }
@@ -293,12 +286,9 @@ sealed interface RecordEvent {
         val url: String,
     ) : RecordEvent
 
-//     data class PrintReceipt(
-//         val url: String,
-//         val filename: String,
-//     ) : RecordEvent
-
-    data object ShowLoading : RecordEvent
+    data class ShowLoading(
+        val message: String = "Memuat Data",
+    ) : RecordEvent
 
     data object Idle : RecordEvent
 }

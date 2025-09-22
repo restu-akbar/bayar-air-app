@@ -1,6 +1,7 @@
 package org.com.bayarair.presentation.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -18,19 +19,29 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.BlendMode.Companion.Color
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.com.bayarair.presentation.component.PdfViewer
+import org.com.bayarair.presentation.component.loadingOverlay
 import org.com.bayarair.presentation.navigation.TabContainer
+import org.com.bayarair.presentation.viewmodel.RecordDetailEvent
+import org.com.bayarair.presentation.viewmodel.RecordDetailViewModel
+import org.com.bayarair.utils.LocalReceiptPrinter
 
 data class RecordDetailScreen(
     val url: String,
@@ -39,16 +50,38 @@ data class RecordDetailScreen(
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
+        val vm: RecordDetailViewModel = koinScreenModel()
+        val printer = LocalReceiptPrinter.current
         val navigator = LocalNavigator.currentOrThrow
+        val snackbarHostState = remember { SnackbarHostState() }
+
+        var showLoading by remember { mutableStateOf(false) }
+        var loadingMessage by remember { mutableStateOf("Loading…") }
+
+        LaunchedEffect(Unit) {
+            vm.events.collect { ev ->
+                when (ev) {
+                    is RecordDetailEvent.ShowSnackbar ->
+                        snackbarHostState.showSnackbar(ev.message)
+
+                    is RecordDetailEvent.ShowLoading -> {
+                        loadingMessage = ev.message
+                        showLoading = true
+                    }
+
+                    RecordDetailEvent.HideLoading -> showLoading = false
+                    RecordDetailEvent.NavigateNext -> navigator.replaceAll(TabContainer())
+                }
+            }
+        }
 
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 TopAppBar(
-                    title = { Text("Bukti Struk Pembayaran") },
+                    title = { Text("Struk Pembayaran") },
                     navigationIcon = {
-                        IconButton(onClick = {
-                            navigator.replaceAll(TabContainer())
-                        }) {
+                        IconButton(onClick = { navigator.replaceAll(TabContainer()) }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBackIos,
                                 contentDescription = "Back",
@@ -73,8 +106,9 @@ data class RecordDetailScreen(
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     Button(
-                        onClick = { },
+                        onClick = { vm.printReceipt(printer, url) },
                         modifier = Modifier.weight(1f),
+                        enabled = !showLoading,
                         colors =
                             ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -82,20 +116,29 @@ data class RecordDetailScreen(
                             ),
                         shape = RoundedCornerShape(6.dp),
                     ) {
-                        Text("Print")
+                        Text(if (showLoading) "Memproses…" else "Print")
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
                 }
             },
         ) { padding ->
-            PdfViewer(
-                url = url,
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+            ) {
+                PdfViewer(
+                    url = url,
+                    modifier = Modifier.fillMaxSize(),
+                )
+
+                if (showLoading) {
+                    loadingOverlay(
+                        loadingMessage,
+                    )
+                }
+            }
         }
     }
 }

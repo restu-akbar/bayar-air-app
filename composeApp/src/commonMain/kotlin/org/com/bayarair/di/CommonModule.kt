@@ -11,6 +11,7 @@ import org.com.bayarair.platform.createHttpClient
 import org.com.bayarair.presentation.screens.HomeScreen
 import org.com.bayarair.presentation.viewmodel.AuthViewModel
 import org.com.bayarair.presentation.viewmodel.HomeViewModel
+import org.com.bayarair.presentation.viewmodel.RecordDetailViewModel
 import org.com.bayarair.presentation.viewmodel.RecordScreenModel
 import org.com.bayarair.presentation.viewmodel.SplashViewModel
 import org.koin.dsl.module
@@ -28,10 +29,11 @@ val commonModule =
             AuthViewModel(
                 get<TokenHandler>(),
                 get<AuthRepository>(),
-                get<AppEvents>()
+                get<AppEvents>(),
             )
         }
         factory<SplashViewModel> { SplashViewModel(get<TokenHandler>()) }
         factory<HomeViewModel> { HomeViewModel(get<MeterRecordRepository>()) }
         factory<RecordScreenModel> { RecordScreenModel(get<RecordRepository>()) }
+        factory<RecordDetailViewModel> { RecordDetailViewModel() }
     }

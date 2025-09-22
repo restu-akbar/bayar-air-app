@@ -43,21 +43,22 @@ class MainActivity : ComponentActivity() {
             var mac by remember { mutableStateOf(loadSavedPrinterMac(context)) }
             var showPicker by remember { mutableStateOf(false) }
 
-            fun hasBtConnect() = Build.VERSION.SDK_INT < 31 ||
+            fun hasBtConnect() =
+                Build.VERSION.SDK_INT < 31 ||
                     ContextCompat.checkSelfPermission(
                         context,
-                        Manifest.permission.BLUETOOTH_CONNECT
+                        Manifest.permission.BLUETOOTH_CONNECT,
                     ) == PackageManager.PERMISSION_GRANTED
 
-            fun hasBtScan() = Build.VERSION.SDK_INT < 31 ||
+            fun hasBtScan() =
+                Build.VERSION.SDK_INT < 31 ||
                     ContextCompat.checkSelfPermission(
                         context,
-                        Manifest.permission.BLUETOOTH_SCAN
+                        Manifest.permission.BLUETOOTH_SCAN,
                     ) == PackageManager.PERMISSION_GRANTED
 
             var canShowPicker by remember { mutableStateOf(hasBtConnect() && hasBtScan()) }
 
-            // Launcher untuk minta CONNECT + SCAN sekaligus
             val permLauncher =
                 rememberLauncherForActivityResult(
                     ActivityResultContracts.RequestMultiplePermissions(),
@@ -73,12 +74,10 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-            // Printer “dummy” yang memicu picker jika user belum memilih printer
             val promptPrinter =
                 remember {
                     object : ReceiptPrinter {
-                        override suspend fun printPdfFromUrl(url: String) {
-                            // Kalau belum ada izin, minta dulu
+                        override suspend fun printPdfFromUrl(url: String): Boolean {
                             if (Build.VERSION.SDK_INT >= 31 && (!hasBtConnect() || !hasBtScan())) {
                                 permLauncher.launch(
                                     arrayOf(
@@ -89,16 +88,25 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 showPicker = true
                             }
+                            return false
                         }
                     }
                 }
 
             val isPaired = mac?.let { isPrinterBonded(context, it) } ?: false
             val printer: ReceiptPrinter =
-                if (mac != null && isPaired) BluetoothEscPosPrinter(
-                    context,
-                    mac!!
-                ) else promptPrinter
+                if (mac != null && isPaired) {
+                    BluetoothEscPosPrinter(
+                        context,
+                        mac!!,
+                    )
+                } else {
+                    if (hasBondedPrinters(context)) {
+                        promptPrinter
+                    } else {
+                        PromptToPairPrinter(context)
+                    }
+                }
 
             LaunchedEffect(mac, isPaired) {
                 if (mac != null && !isPaired) {
@@ -116,8 +124,8 @@ class MainActivity : ComponentActivity() {
                             permLauncher.launch(
                                 arrayOf(
                                     Manifest.permission.BLUETOOTH_CONNECT,
-                                    Manifest.permission.BLUETOOTH_SCAN
-                                )
+                                    Manifest.permission.BLUETOOTH_SCAN,
+                                ),
                             )
                         } else {
                             showPicker = true
@@ -142,7 +150,7 @@ class MainActivity : ComponentActivity() {
 private class PromptToPairPrinter(
     private val context: Context,
 ) : ReceiptPrinter {
-    override suspend fun printPdfFromUrl(url: String) {
+    override suspend fun printPdfFromUrl(url: String): Boolean {
         Toast
             .makeText(
                 context,
@@ -154,13 +162,22 @@ private class PromptToPairPrinter(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
         context.startActivity(intent)
+        return false
     }
 }
 
-private fun isPrinterBonded(context: Context, mac: String): Boolean {
+private fun isPrinterBonded(
+    context: Context,
+    mac: String,
+): Boolean {
     val mgr =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
     val adapter = mgr.adapter ?: return false
     return adapter.bondedDevices.any { it.address.equals(mac, ignoreCase = true) }
 }
 
+private fun hasBondedPrinters(context: Context): Boolean {
+    val mgr = context.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+    val adapter = mgr.adapter ?: return false
+    return adapter.bondedDevices.isNotEmpty()
+}

@@ -35,7 +35,7 @@ fun PrinterPickerDialog(
         title = { Text("Pilih Printer Bluetooth") },
         text = {
             if (devices.isEmpty()) {
-                Text("Tidak ada perangkat yang sudah dipasangkan.\nBuka pengaturan Bluetooth dan lakukan pairing terlebih dahulu.")
+                Text("Tidak ada perangkat bluetooth yang sudah terhubung.\nBuka pengaturan Bluetooth dan lakukan pairing dengan printer terlebih dahulu.")
             } else {
                 LazyColumn(Modifier
                     .fillMaxWidth()
