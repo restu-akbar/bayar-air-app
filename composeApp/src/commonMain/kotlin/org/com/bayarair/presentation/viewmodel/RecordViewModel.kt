@@ -150,7 +150,6 @@ class RecordScreenModel(
 
     fun saveRecord(bitmap: Bitmap?) {
         screenModelScope.launch {
-            _events.emit(RecordEvent.ShowLoading("Menyimpan Data"))
             try {
                 val st = state.value
                 if (st.air <= 0L || st.admin <= 0L) {
@@ -187,6 +186,7 @@ class RecordScreenModel(
                     return@launch
                 }
 
+                _events.emit(RecordEvent.ShowLoading("Menyimpan Data"))
                 val stream = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
                 val photoBytes = stream.toByteArray()
@@ -206,7 +206,7 @@ class RecordScreenModel(
                     ).onSuccess { env ->
                         _events.emit(RecordEvent.ShowSnackbar(env.message))
                         resetForm()
-                        _events.emit(RecordEvent.Saved(env.data!!.struk.url))
+                        _events.emit(RecordEvent.Saved(env.data!!.struk.url, env.data!!.pencatatan.id))
                     }.onFailure { e ->
                         _events.emit(RecordEvent.ShowSnackbar(e.message ?: "Gagal menyimpan"))
                         _events.emit(RecordEvent.Idle)
@@ -284,6 +284,7 @@ sealed interface RecordEvent {
 
     data class Saved(
         val url: String,
+        val recordId: String,
     ) : RecordEvent
 
     data class ShowLoading(

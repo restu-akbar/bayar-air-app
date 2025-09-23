@@ -84,7 +84,7 @@ data class LoginScreen(
                 is AuthState.Success -> {
                     navigator.replaceAll(TabContainer(s.message))
                 }
-
+                is AuthState.ShowSnackbar -> snackbarHost.showSnackbar(s.message)
                 else -> Unit
             }
         }
@@ -164,14 +164,16 @@ data class LoginScreen(
                         colors =
                             OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.onBackground,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(
-                                    alpha = 0.7f
-                                ),
+                                unfocusedBorderColor =
+                                    MaterialTheme.colorScheme.onBackground.copy(
+                                        alpha = 0.7f,
+                                    ),
                                 cursorColor = MaterialTheme.colorScheme.onBackground,
                                 focusedLabelColor = MaterialTheme.colorScheme.onBackground,
-                                unfocusedLabelColor = MaterialTheme.colorScheme.onBackground.copy(
-                                    alpha = 0.8f
-                                ),
+                                unfocusedLabelColor =
+                                    MaterialTheme.colorScheme.onBackground.copy(
+                                        alpha = 0.8f,
+                                    ),
                                 focusedLeadingIconColor = MaterialTheme.colorScheme.onBackground,
                                 unfocusedLeadingIconColor =
                                     MaterialTheme.colorScheme.onBackground.copy(
@@ -217,14 +219,16 @@ data class LoginScreen(
                         colors =
                             OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.onBackground,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(
-                                    alpha = 0.7f
-                                ),
+                                unfocusedBorderColor =
+                                    MaterialTheme.colorScheme.onBackground.copy(
+                                        alpha = 0.7f,
+                                    ),
                                 cursorColor = MaterialTheme.colorScheme.onBackground,
                                 focusedLabelColor = MaterialTheme.colorScheme.onBackground,
-                                unfocusedLabelColor = MaterialTheme.colorScheme.onBackground.copy(
-                                    alpha = 0.8f
-                                ),
+                                unfocusedLabelColor =
+                                    MaterialTheme.colorScheme.onBackground.copy(
+                                        alpha = 0.8f,
+                                    ),
                                 focusedLeadingIconColor = MaterialTheme.colorScheme.onBackground,
                                 unfocusedLeadingIconColor =
                                     MaterialTheme.colorScheme.onBackground.copy(

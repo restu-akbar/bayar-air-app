@@ -1,6 +1,9 @@
 package org.com.bayarair
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -93,19 +96,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-            val isPaired = mac?.let { isPrinterBonded(context, it) } ?: false
+            val isPaired = mac?.let { isPrinterBondedSafe(context, it) } ?: false
+            val connectGranted = hasBtConnect()
+
             val printer: ReceiptPrinter =
-                if (mac != null && isPaired) {
-                    BluetoothEscPosPrinter(
-                        context,
-                        mac!!,
-                    )
-                } else {
-                    if (hasBondedPrinters(context)) {
-                        promptPrinter
-                    } else {
-                        PromptToPairPrinter(context)
-                    }
+                when {
+                    mac != null && isPaired -> BluetoothEscPosPrinter(context, mac!!)
+                    !connectGranted -> promptPrinter
+                    hasBondedPrintersSafe(context) -> promptPrinter
+                    else -> PromptToPairPrinter(context)
                 }
 
             LaunchedEffect(mac, isPaired) {
@@ -166,18 +165,28 @@ private class PromptToPairPrinter(
     }
 }
 
-private fun isPrinterBonded(
-    context: Context,
-    mac: String,
-): Boolean {
-    val mgr =
-        context.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
-    val adapter = mgr.adapter ?: return false
-    return adapter.bondedDevices.any { it.address.equals(mac, ignoreCase = true) }
+@SuppressLint("MissingPermission")
+private fun safeBondedDevices(context: Context): Set<BluetoothDevice> {
+    val mgr = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    val adapter = mgr.adapter ?: return emptySet()
+
+    if (Build.VERSION.SDK_INT >= 31 &&
+        ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
+        != PackageManager.PERMISSION_GRANTED
+    ) {
+        return emptySet()
+    }
+
+    return try {
+        adapter.bondedDevices ?: emptySet()
+    } catch (_: SecurityException) {
+        emptySet()
+    }
 }
 
-private fun hasBondedPrinters(context: Context): Boolean {
-    val mgr = context.getSystemService(Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
-    val adapter = mgr.adapter ?: return false
-    return adapter.bondedDevices.isNotEmpty()
-}
+private fun isPrinterBondedSafe(
+    context: Context,
+    mac: String,
+): Boolean = safeBondedDevices(context).any { it.address.equals(mac, ignoreCase = true) }
+
+private fun hasBondedPrintersSafe(context: Context): Boolean = safeBondedDevices(context).isNotEmpty()

@@ -29,7 +29,10 @@ class BluetoothEscPosPrinter(
 
             // 1) Download PDF
             val pdfFile = downloadPdf(url)
-            Log.d(TAG, "PDF downloaded | path=${pdfFile.absolutePath} size=${pdfFile.length()} bytes")
+            Log.d(
+                TAG,
+                "PDF downloaded | path=${pdfFile.absolutePath} size=${pdfFile.length()} bytes"
+            )
 
             // 2) Render PDF → Bitmaps
             val tRenderStart = System.currentTimeMillis()

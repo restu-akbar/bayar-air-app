@@ -94,7 +94,7 @@ object RecordScreen : Screen {
                     is RecordEvent.ShowSnackbar -> snackbarHostState.showSnackbar(ev.message)
                     is RecordEvent.Saved -> {
                         bitmap = null
-                        navigator?.replaceAll(RecordDetailScreen(ev.url, false))
+                        navigator?.replaceAll(RecordDetailScreen(ev.url, ev.recordId, false))
                     }
 
                     is RecordEvent.ShowLoading -> {

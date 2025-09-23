@@ -2,7 +2,6 @@ package org.com.bayarair.di
 
 import io.ktor.client.HttpClient
 import org.com.bayarair.core.AppEvents
-
 import org.com.bayarair.data.repository.AuthRepository
 import org.com.bayarair.data.repository.MeterRecordRepository
 import org.com.bayarair.data.repository.RecordRepository
@@ -23,7 +22,7 @@ val commonModule =
 
         single<AuthRepository> { AuthRepository(get<HttpClient>()) }
         single<RecordRepository> { RecordRepository(get<HttpClient>()) }
-        single<MeterRecordRepository>{ MeterRecordRepository(get<HttpClient>()) }
+        single<MeterRecordRepository> { MeterRecordRepository(get<HttpClient>()) }
 
         factory<AuthViewModel> {
             AuthViewModel(
@@ -35,5 +34,5 @@ val commonModule =
         factory<SplashViewModel> { SplashViewModel(get<TokenHandler>()) }
         factory<HomeViewModel> { HomeViewModel(get<MeterRecordRepository>()) }
         factory<RecordScreenModel> { RecordScreenModel(get<RecordRepository>()) }
-        factory<RecordDetailViewModel> { RecordDetailViewModel() }
+        factory<RecordDetailViewModel> { RecordDetailViewModel(get<RecordRepository>()) }
     }

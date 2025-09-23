@@ -45,6 +45,7 @@ import org.com.bayarair.utils.LocalReceiptPrinter
 
 data class RecordDetailScreen(
     val url: String,
+    val recordId: String,
     val isDetail: Boolean,
 ) : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -106,7 +107,7 @@ data class RecordDetailScreen(
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     Button(
-                        onClick = { vm.printReceipt(printer, url) },
+                        onClick = { vm.printReceipt(printer, url, recordId) },
                         modifier = Modifier.weight(1f),
                         enabled = !showLoading,
                         colors =

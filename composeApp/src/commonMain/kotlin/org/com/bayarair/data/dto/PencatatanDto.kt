@@ -21,9 +21,14 @@ data class HargaData(
 )
 
 @Serializable
-data class SaveRecordResponse<T>(
-    val pencatatan: T? = null,
+data class SaveRecordResponse(
+    val pencatatan: Pencatatan,
     val struk: StrukDto,
+)
+
+@Serializable
+data class Pencatatan(
+    val id: String,
 )
 
 @Serializable
