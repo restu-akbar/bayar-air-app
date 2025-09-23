@@ -35,6 +35,7 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import ir.ehsannarmani.compose_charts.ColumnChart
+import ir.ehsannarmani.compose_charts.PieChart
 import ir.ehsannarmani.compose_charts.extensions.format
 import ir.ehsannarmani.compose_charts.models.AnimationMode
 import ir.ehsannarmani.compose_charts.models.BarProperties
@@ -143,7 +144,55 @@ object HomeScreen : Screen {
                     }
                 }
                 if (switcher){
-                    StatisticSection()
+                    var switcher2 by remember { mutableStateOf(true) } // History
+
+                    Row (
+                        modifier = Modifier.padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ){
+                        Button(
+                            onClick = {
+                                vm.loadHistory()
+                                switcher2 = true
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (switcher2)
+                                    MaterialTheme.colorScheme.activeButton
+                                else
+                                    MaterialTheme.colorScheme.inactiveButton,
+                                contentColor = if (switcher2)
+                                    MaterialTheme.colorScheme.activeButtonText
+                                else
+                                    MaterialTheme.colorScheme.inactiveButtonText,
+                            )
+                        ) {
+
+                            Text("BarChart")
+                        }
+
+                        Button(
+                            onClick = { switcher2 = false },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!switcher2)
+                                    MaterialTheme.colorScheme.activeButton
+                                else
+                                    MaterialTheme.colorScheme.inactiveButton,
+                                contentColor = if (!switcher2)
+                                    MaterialTheme.colorScheme.activeButtonText
+                                else
+                                    MaterialTheme.colorScheme.inactiveButtonText,
+                            )
+                        ) {
+                            Text("PieChart")
+                        }
+                    }
+
+                    if (switcher2){
+                        Barchart()
+                    }else
+                    {
+                        PieChart()
+                    }
                 }else{
                     HistorySection(records)
                 }
@@ -178,8 +227,7 @@ fun HistorySection(records: List<MeterRecord>){//records: List<MeterRecord>
                         .fillMaxWidth()
                         .padding(vertical = 8.dp, horizontal = 12.dp)
                         .clickable {
-                            val record = null
-                            navigator.push(StrukScreen(record))
+                            navigator.push(RecordDetailScreen(url = records.receipt,true))
                         }
                 ) {
                     Column(Modifier.padding(16.dp)) {
@@ -205,7 +253,11 @@ fun HistorySection(records: List<MeterRecord>){//records: List<MeterRecord>
 }
 
 @Composable
-fun StatisticSection() {
+fun PieChart(){
+    Text("Ini Pie Chart")
+}
+@Composable
+fun Barchart() {
     val data = remember {
         listOf(
             Bars(
@@ -452,3 +504,4 @@ fun StatisticSection() {
     }
 
 }
+
