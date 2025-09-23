@@ -14,7 +14,7 @@ class MeterRecordRepository(
     private val client: HttpClient
 ) {
     suspend fun getRecords(): Result<List<MeterRecord>> = runCatching {
-        val res = client.get("$BASE_URL/records") {
+        val res = client.get("$BASE_URL/pencatatan") {
             contentType(ContentType.Application.Json)
         }
         res.unwrapFlexible<List<MeterRecord>>()
