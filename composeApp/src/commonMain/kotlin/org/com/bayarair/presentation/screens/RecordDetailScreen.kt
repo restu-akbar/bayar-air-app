@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -47,7 +46,7 @@ import org.com.bayarair.utils.LocalReceiptPrinter
 data class RecordDetailScreen(
     val url: String,
     val recordId: String,
-    val isDetail: Boolean,
+    val isDetail: Boolean = true,
 ) : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -83,7 +82,13 @@ data class RecordDetailScreen(
                 TopAppBar(
                     title = { Text("Struk Pembayaran") },
                     navigationIcon = {
-                        IconButton(onClick = { navigator.replaceAll(TabContainer()) }) {
+                        IconButton(onClick = {
+                            if (isDetail) {
+                                navigator.pop()
+                            } else {
+                                navigator.replaceAll(TabContainer())
+                            }
+                        }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBackIos,
                                 contentDescription = "Back",
@@ -104,7 +109,7 @@ data class RecordDetailScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 40.dp),
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     Button(

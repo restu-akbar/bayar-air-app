@@ -886,34 +886,106 @@ fun HistorySection(
                 Text("Belum ada history", color = Color.Gray)
             }
         } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            ElevatedCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                shape = RoundedCornerShape(6.dp),
+                colors = CardDefaults.elevatedCardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
             ) {
-                items(records) { record ->
-                    ElevatedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp)
-                            .clickable {
-                                navigator.root().push(
-                                    RecordDetailScreen(record.receipt, record.id, true)
-                                )
-                            }
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        "History Pencatatan",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.Start
                     ) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(
-                                "${record.customer.name}",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                        items(records, key = { it.id }) { record ->
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navigator.root().push(
+                                            RecordDetailScreen(record.receipt, record.id, true)
+                                        )
+                                    }
+                                    .padding(vertical = 10.dp)
                             ) {
-                                Column { Text("Status: ${record.status}") }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = record.customer.name,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = "${record.meter} m³",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = record.customer.address,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                    val scheme = MaterialTheme.colorScheme
+
+                                    val (statusLabel, bgColor, fgColor) = when (record.status) {
+                                        "sudah_bayar" -> Triple(
+                                            "Sudah Bayar",
+                                            scheme.tertiaryContainer,
+                                            scheme.onTertiaryContainer
+                                        )
+
+                                        "belum_bayar" -> Triple(
+                                            "Belum Bayar",
+                                            scheme.error.copy(alpha = 0.15f),
+                                            scheme.error
+                                        )
+
+                                        else -> Triple(
+                                            "-",
+                                            scheme.surfaceVariant,
+                                            scheme.onSurfaceVariant
+                                        )
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(bgColor)
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = statusLabel,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = fgColor,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
                             }
+                            HorizontalDivider()
                         }
                     }
                 }
