@@ -1,33 +1,59 @@
 package org.com.bayarair.presentation.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.QueryStats
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
@@ -35,7 +61,6 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import ir.ehsannarmani.compose_charts.ColumnChart
-import ir.ehsannarmani.compose_charts.PieChart
 import ir.ehsannarmani.compose_charts.extensions.format
 import ir.ehsannarmani.compose_charts.models.AnimationMode
 import ir.ehsannarmani.compose_charts.models.BarProperties
@@ -47,202 +72,847 @@ import ir.ehsannarmani.compose_charts.models.IndicatorPosition
 import ir.ehsannarmani.compose_charts.models.LabelHelperProperties
 import ir.ehsannarmani.compose_charts.models.LabelProperties
 import ir.ehsannarmani.compose_charts.models.PopupProperties
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.com.bayarair.data.model.MeterRecord
-import org.com.bayarair.presentation.theme.activeButton
-import org.com.bayarair.presentation.theme.activeButtonText
-import org.com.bayarair.presentation.theme.inactiveButton
+import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.theme.inactiveButtonText
+import org.com.bayarair.presentation.viewmodel.HomeState
 import org.com.bayarair.presentation.viewmodel.HomeViewModel
+import org.com.bayarair.presentation.viewmodel.ProfileViewModel
+import org.com.bayarair.utils.DateUtils
+import java.text.DecimalFormat
+import kotlin.math.atan2
+import kotlin.math.ceil
+import kotlin.math.hypot
+import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
-val columnGridProperties = GridProperties(
-    enabled = true,
-    xAxisProperties = GridProperties.AxisProperties(thickness = .2.dp, color = SolidColor(Color.Gray.copy(alpha = .6f))),
-    yAxisProperties = GridProperties.AxisProperties(thickness = .2.dp, color = SolidColor(Color.Gray.copy(alpha = .6f))),
-)
+private enum class RefreshOwner { NONE, TOP, CHART, HISTORY }
 
+@OptIn(ExperimentalMaterial3Api::class)
 object HomeScreen : Screen {
-    @OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalTime::class)
     @Composable
     override fun Content() {
-        val navigator = LocalNavigator.currentOrThrow
         val vm: HomeViewModel = koinScreenModel()
-        val records by vm.records.collectAsState()
-        val loading by vm.loading.collectAsState()
-        val error by vm.error.collectAsState()
+        val vmProfile: ProfileViewModel = koinScreenModel()
 
+        val profileLoading by vmProfile.loading.collectAsState()
+        val state by vm.state.collectAsState()
+        val profileState by vmProfile.state.collectAsState()
 
+        var switcher by remember { mutableStateOf(true) }
+        var graph by rememberSaveable { mutableStateOf(true) }
 
+        var refreshOwner by rememberSaveable { mutableStateOf(RefreshOwner.NONE) }
 
+        val isTopRefreshing = (refreshOwner == RefreshOwner.TOP)
 
-
-        val snackbarHost = remember { SnackbarHostState() }
-        val rootNavigator = remember(navigator) {
-            generateSequence(navigator) { it.parent }.last()
+        LaunchedEffect(profileLoading, state.loading) {
+            if (!profileLoading && !state.loading) {
+                refreshOwner = RefreshOwner.NONE
+            }
         }
-        var name = "User" //
-        var switcher by remember { mutableStateOf(true) } // History
 
-        Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHost) }
-        ) { padding ->
-            Column(
+        val globalPtr = rememberPullToRefreshState()
+
+        LaunchedEffect(Unit) {
+            if (state.pieChart == null || state.barChart == null) {
+                vm.init(month = currentMonth(), force = true, isPieChart = switcher)
+            }
+            if (profileState.user == null) {
+                vmProfile.getUser()
+            }
+        }
+        LaunchedEffect(switcher) {
+            if (!switcher) vm.loadHistory()
+        }
+
+        Scaffold { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .padding(2.dp),
-                ) {
-                    Text(
-                        text = "Bayar Air Dashboard",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "Selamat Datang, $name !",
-                        color = Color.White
-                    )
-                    Row(
-                        modifier = Modifier.padding(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+
+                    PullToRefreshBox(
+                        isRefreshing = isTopRefreshing,
+                        onRefresh = {
+                            refreshOwner = RefreshOwner.TOP
+                            vmProfile.getUser()
+                            if (switcher) {
+                                if (graph) {
+                                    vm.getPieChartData(force = true, month = currentMonth())
+                                } else {
+                                    val yearNow = Clock.System.now()
+                                        .toLocalDateTime(TimeZone.currentSystemDefault()).year
+                                    vm.getBarChartData(force = true, year = yearNow)
+                                }
+                            } else {
+                                vm.loadHistory(force = true)
+                            }
+                        },
+                        state = globalPtr,
                     ) {
-                        Button(
-                            onClick = {
-                                vm.loadHistory()
-                                switcher = true
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (switcher)
-                                    MaterialTheme.colorScheme.activeButton
-                                else
-                                    MaterialTheme.colorScheme.inactiveButton,
-                                contentColor = if (switcher)
-                                    MaterialTheme.colorScheme.activeButtonText
-                                else
-                                    MaterialTheme.colorScheme.inactiveButtonText,
+                        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                            Text(
+                                text = "Bayar Air Dashboard",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
                             )
-                        ) {
-
-                            Text("Statistik")
-                        }
-
-                        Button(
-                            onClick = { switcher = false },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (!switcher)
-                                    MaterialTheme.colorScheme.activeButton
-                                else
-                                    MaterialTheme.colorScheme.inactiveButton,
-                                contentColor = if (!switcher)
-                                    MaterialTheme.colorScheme.activeButtonText
-                                else
-                                    MaterialTheme.colorScheme.inactiveButtonText,
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "Selamat Datang, ${profileState.user?.name ?: "User"} !",
+                                color = Color.White,
+                                modifier = Modifier.fillMaxWidth().basicMarquee(),
+                                maxLines = 1,
+                                overflow = TextOverflow.Visible
                             )
-                        ) {
-                            Text("History")
+                            Row(
+                                modifier = Modifier.padding(vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Button(
+                                    onClick = { switcher = true },
+                                    shape = RoundedCornerShape(6.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (switcher)
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.secondary,
+                                        contentColor = if (switcher) Color.Black
+                                        else MaterialTheme.colorScheme.inactiveButtonText,
+                                    )
+                                ) {
+                                    Icon(Icons.Default.QueryStats, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Statistik")
+                                }
+                                Spacer(Modifier.size(12.dp))
+                                Button(
+                                    onClick = { switcher = false },
+                                    shape = RoundedCornerShape(6.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (!switcher)
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        else
+                                            MaterialTheme.colorScheme.secondary,
+                                        contentColor = if (!switcher) Color.Black
+                                        else MaterialTheme.colorScheme.inactiveButtonText,
+                                    )
+                                ) {
+                                    Icon(Icons.Default.History, null, Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("History")
+                                }
+                            }
                         }
+                    }
 
+                    if (switcher) {
+                        ChartSwitcher(
+                            vm = vm,
+                            graph = graph,
+                            onGraphChanged = { graph = it },
+                            isOwnerChart = (refreshOwner == RefreshOwner.CHART),
+                            onLocalRefreshStart = { refreshOwner = RefreshOwner.CHART }
+                        )
+                    } else {
+                        HistorySection(
+                            records = state.history as List<MeterRecord>,
+                            isRefreshing = (refreshOwner == RefreshOwner.HISTORY) && state.loading,
+                            onRefresh = {
+                                refreshOwner = RefreshOwner.HISTORY
+                                vm.loadHistory(force = true)
+                            }
+                        )
                     }
                 }
-                if (switcher){
-                    var switcher2 by remember { mutableStateOf(true) } // History
+            }
+        }
+    }
+}
 
-                    Row (
-                        modifier = Modifier.padding(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ){
-                        Button(
+@OptIn(ExperimentalTime::class, ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun ChartSwitcher(
+    vm: HomeViewModel,
+    graph: Boolean,
+    onGraphChanged: (Boolean) -> Unit,
+    isOwnerChart: Boolean,
+    onLocalRefreshStart: () -> Unit
+) {
+    val months = DateUtils.months
+    val years = (2025..2030).toList()
+
+    var monthMenuExpanded by remember { mutableStateOf(false) }
+    var graphMenuExpanded by remember { mutableStateOf(false) }
+    var selectedMonth by rememberSaveable { mutableStateOf(currentMonth()) }
+    var selectedYear by rememberSaveable { mutableStateOf(years.first()) }
+
+    val state by vm.state.collectAsState()
+
+    val ptrState = rememberPullToRefreshState()
+    val isChartRefreshing = isOwnerChart && state.loading
+
+    val currentYear = remember {
+        Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).year
+    }
+    LaunchedEffect(graph) {
+        if (!graph) vm.getBarChartData(force = true, year = currentYear)
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box {
+            Button(
+                onClick = { monthMenuExpanded = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(6.dp),
+            ) {
+                Icon(
+                    if (graph) Icons.Default.CalendarMonth else Icons.Default.CalendarToday,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (graph)
+                        months.first { it.first == selectedMonth }.second
+                    else
+                        selectedYear.toString()
+                )
+            }
+
+            if (graph) {
+                MonthDropdown(
+                    expanded = monthMenuExpanded,
+                    onDismissRequest = { monthMenuExpanded = false },
+                    selectedMonth = selectedMonth,
+                    onMonthSelected = { m ->
+                        selectedMonth = m
+                        vm.getPieChartData(force = true, month = selectedMonth)
+                        monthMenuExpanded = false
+                    },
+                    months = months
+                )
+            } else {
+                DropdownMenu(
+                    expanded = monthMenuExpanded,
+                    onDismissRequest = { monthMenuExpanded = false },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                ) {
+                    years.forEach { y ->
+                        DropdownMenuItem(
+                            text = { Text(y.toString()) },
                             onClick = {
-                                vm.loadHistory()
-                                switcher2 = true
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (switcher2)
-                                    MaterialTheme.colorScheme.activeButton
-                                else
-                                    MaterialTheme.colorScheme.inactiveButton,
-                                contentColor = if (switcher2)
-                                    MaterialTheme.colorScheme.activeButtonText
-                                else
-                                    MaterialTheme.colorScheme.inactiveButtonText,
-                            )
-                        ) {
+                                selectedYear = y
+                                vm.getBarChartData(force = true, year = selectedYear)
+                                monthMenuExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
 
-                            Text("BarChart")
-                        }
+        Box {
+            Button(
+                onClick = { graphMenuExpanded = true },
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = Color.Black
+                )
+            ) {
+                Icon(Icons.Default.Tune, contentDescription = null, Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(if (graph) "Pie Chart" else "Bar Chart")
+            }
 
-                        Button(
-                            onClick = { switcher2 = false },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (!switcher2)
-                                    MaterialTheme.colorScheme.activeButton
-                                else
-                                    MaterialTheme.colorScheme.inactiveButton,
-                                contentColor = if (!switcher2)
-                                    MaterialTheme.colorScheme.activeButtonText
-                                else
-                                    MaterialTheme.colorScheme.inactiveButtonText,
+            DropdownMenu(
+                expanded = graphMenuExpanded,
+                onDismissRequest = { graphMenuExpanded = false },
+                offset = DpOffset(0.dp, 4.dp),
+                modifier = Modifier
+                    .shadow(8.dp, RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+            ) {
+                val scheme = MaterialTheme.colorScheme
+                val pieBg = if (graph) scheme.background else scheme.secondary
+                val pieContent = if (graph) scheme.onBackground else scheme.onSecondary
+                val barBg = if (!graph) scheme.background else scheme.secondary
+                val barContent = if (!graph) scheme.onBackground else scheme.onSecondary
+
+                DropdownMenuItem(
+                    text = { Text("Pie Chart") },
+                    onClick = {
+                        onGraphChanged(true)
+                        graphMenuExpanded = false
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(pieBg),
+                    colors = MenuDefaults.itemColors(
+                        textColor = pieContent,
+                        leadingIconColor = pieContent,
+                        trailingIconColor = pieContent
+                    )
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Bar Chart") },
+                    onClick = {
+                        onGraphChanged(false)
+                        graphMenuExpanded = false
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(barBg),
+                    colors = MenuDefaults.itemColors(
+                        textColor = barContent,
+                        leadingIconColor = barContent,
+                        trailingIconColor = barContent
+                    )
+                )
+            }
+        }
+    }
+
+    Spacer(Modifier.height(16.dp))
+
+    PullToRefreshBox(
+        isRefreshing = isChartRefreshing,
+        onRefresh = {
+            onLocalRefreshStart()
+            if (graph) {
+                vm.getPieChartData(force = true, month = selectedMonth)
+            } else {
+                vm.getBarChartData(force = true, year = selectedYear)
+            }
+        },
+        state = ptrState,
+    ) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            if (graph) {
+                pieChart(state)
+            } else {
+                barChart(state)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MonthDropdown(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    selectedMonth: Int,
+    onMonthSelected: (Int) -> Unit,
+    months: List<Pair<Int, String>>,
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(8.dp)
+    ) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(4),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .padding(8.dp)
+                .size(width = 320.dp, height = 150.dp)
+        ) {
+            items(months) { (m, name) ->
+                val isSelected = m == selectedMonth
+                val shortName = name.take(3)
+
+                Button(
+                    onClick = {
+                        onMonthSelected(m)
+                        onDismissRequest()
+                    },
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isSelected)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (isSelected)
+                            Color.White
+                        else
+                            MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
+                        .width(70.dp)
+                        .height(40.dp)
+                ) {
+                    Text(
+                        text = shortName,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Clip
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalTime::class)
+private fun currentMonth(): Int {
+    return try {
+        Clock.System.now()
+            .toLocalDateTime(TimeZone.currentSystemDefault())
+            .monthNumber
+    } catch (_: Throwable) {
+        1
+    }
+}
+
+@Composable
+fun pieChart(state: HomeState) {
+    val totalRecordByUser = state.pieChart?.total
+    val values = listOf(
+        (state.totalCust ?: 0).toFloat(),
+        (totalRecordByUser ?: 0).toFloat()
+    )
+    val labels = listOf("Total Pelanggan", "Total Pencatatan")
+    val total = values.sum().coerceAtLeast(1f)
+
+    val scheme = MaterialTheme.colorScheme
+    val colors = listOf(
+        Color(0xFF4773B4),
+        scheme.primary,
+    )
+
+    val strokeWidth = 16.dp
+
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing)
+        )
+    }
+
+    var selectedIndex by remember { mutableStateOf<Int?>(null) }
+    var tapOffset by remember { mutableStateOf(Offset.Zero) }
+    var showTooltip by remember { mutableStateOf(false) }
+
+    val formatter = remember { DecimalFormat("#.##") }
+    val valueChange: Float = (state.pieChart?.persentase?.toFloat()) ?: 0f
+
+    val (icon, color) = when {
+        valueChange > 0f -> Pair(Icons.Default.ArrowUpward, scheme.tertiaryContainer)
+        valueChange < 0f -> Pair(Icons.Default.ArrowDownward, scheme.error)
+        else -> Pair(Icons.Default.Remove, Color.Gray)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(410.dp)
+            .padding(vertical = 12.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = scheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(30.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxWidth(0.9f)
+            ) {
+                val diameter = minOf(maxWidth, 180.dp)
+                Box(
+                    modifier = Modifier
+                        .width(diameter)
+                        .aspectRatio(1f)
+                ) box@{
+                    Canvas(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .pointerInput(values, total) {
+                                detectTapGestures { offset ->
+                                    val sizePx = this.size
+                                    val center = Offset(sizePx.width / 2f, sizePx.height / 2f)
+                                    val dx = offset.x - center.x
+                                    val dy = offset.y - center.y
+                                    val distance = hypot(dx, dy)
+
+                                    val outerRadius = min(sizePx.width, sizePx.height) / 2f
+                                    val ringPx = with(this) { strokeWidth.toPx() }
+                                    val innerRadius = outerRadius - ringPx
+
+                                    if (distance in innerRadius..outerRadius) {
+                                        var angle =
+                                            Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
+                                                .toFloat()
+                                        if (angle < 0) angle += 360f
+                                        var currentStart = 270f
+                                        var foundIndex: Int? = null
+                                        values.forEachIndexed { i, v ->
+                                            val sweep = 360f * (v / total) * progress.value
+                                            val end = (currentStart + sweep) % 360f
+                                            val inSlice = if (sweep <= 0.1f) {
+                                                false
+                                            } else if (currentStart <= end) {
+                                                angle in currentStart..end
+                                            } else {
+                                                angle >= currentStart || angle <= end
+                                            }
+                                            if (inSlice) {
+                                                foundIndex = i
+                                                return@forEachIndexed
+                                            }
+                                            currentStart = (currentStart + sweep) % 360f
+                                        }
+                                        selectedIndex = foundIndex
+                                        tapOffset = offset
+                                        showTooltip = foundIndex != null
+                                    } else {
+                                        showTooltip = false
+                                        selectedIndex = null
+                                    }
+                                }
+                            }
+                    ) {
+                        val ring = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Butt)
+                        var startAngle = -90f
+                        values.forEachIndexed { index, value ->
+                            val sweepAngle = 360f * (value / total) * progress.value
+
+                            val isSelected = selectedIndex == index
+                            val drawRing = if (isSelected) {
+                                Stroke(width = ring.width * 1.25f, cap = StrokeCap.Butt)
+                            } else ring
+
+                            drawArc(
+                                color = colors.getOrElse(index) { scheme.secondary },
+                                startAngle = startAngle,
+                                sweepAngle = sweepAngle,
+                                useCenter = false,
+                                style = drawRing
                             )
-                        ) {
-                            Text("PieChart")
+                            startAngle += sweepAngle
                         }
                     }
 
-                    if (switcher2){
-                        Barchart()
-                    }else
-                    {
-                        PieChart()
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showTooltip && selectedIndex != null,
+                        enter = fadeIn() + scaleIn(),
+                        exit = fadeOut()
+                    ) {
+                        val idx = selectedIndex ?: 0
+                        val v = values[idx]
+                        val pct = if (total == 0f) 0f else (v / total) * 100f
+                        val tipText =
+                            "${labels[idx]}: ${formatter.format(v)} (${formatter.format(pct)}%)"
+
+                        Box(
+                            modifier = Modifier
+                                .offset {
+                                    IntOffset(
+                                        x = tapOffset.x.roundToInt() - 40,
+                                        y = tapOffset.y.roundToInt() - 56
+                                    )
+                                }
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(scheme.surface)
+                                .border(
+                                    1.dp,
+                                    scheme.outline.copy(alpha = 0.3f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = tipText,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = scheme.onSurface
+                            )
+                        }
                     }
-                }else{
-                    HistorySection(records)
                 }
             }
 
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                text = DateUtils.months.firstOrNull { it.first == state.pieChart?.bulan }?.second
+                    ?: "-",
+                style = MaterialTheme.typography.titleLarge,
+                color = scheme.onPrimaryContainer,
+                fontWeight = FontWeight.Bold,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "${state.pieChart?.total ?: 0}",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = scheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold,
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(
+                            color.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "${formatter.format(valueChange)}%",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = color
+                    )
+                }
+            }
+
+            Text(
+                text = "Pelanggan Tercatat",
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onPrimaryContainer
+            )
         }
     }
 }
 
 @Composable
-fun HistorySection(records: List<MeterRecord>){//records: List<MeterRecord>
+fun barChart(state: HomeState) {
+    val scheme = MaterialTheme.colorScheme
+
+    fun normalizeMonthLabel(raw: String): String {
+        val s = raw.trim().lowercase()
+        val map = mapOf(
+            "1" to "Jan", "01" to "Jan", "jan" to "Jan", "januari" to "Jan", "january" to "Jan",
+            "2" to "Feb", "02" to "Feb", "feb" to "Feb", "februari" to "Feb", "february" to "Feb",
+            "3" to "Mar", "03" to "Mar", "mar" to "Mar", "maret" to "Mar", "march" to "Mar",
+            "4" to "Apr", "04" to "Apr", "apr" to "Apr", "april" to "Apr",
+            "5" to "Mei", "05" to "Mei", "mei" to "Mei", "may" to "Mei",
+            "6" to "Jun", "06" to "Jun", "jun" to "Jun", "juni" to "Jun", "june" to "Jun",
+            "7" to "Jul", "07" to "Jul", "jul" to "Jul", "juli" to "Jul", "july" to "Jul",
+            "8" to "Aug", "08" to "Aug", "aug" to "Aug", "agustus" to "Aug", "august" to "Aug",
+            "9" to "Sep", "09" to "Sep", "sep" to "Sep", "september" to "Sep",
+            "10" to "Oct", "okt" to "Oct", "oct" to "Oct", "oktober" to "Oct", "october" to "Oct",
+            "11" to "Nov", "nov" to "Nov", "november" to "Nov",
+            "12" to "Des", "des" to "Des", "dec" to "Des", "desember" to "Des", "december" to "Des",
+        )
+        return map[s] ?: raw.take(3).replaceFirstChar { it.uppercase() }
+    }
+
+    val monthOrder =
+        listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Des")
+
+    val barsData: List<Bars> = remember(state.barChart) {
+        val src = state.barChart?.data.orEmpty()
+        val totalsByLabel = src
+            .groupBy { normalizeMonthLabel(it.bulan) }
+            .mapValues { (_, items) -> items.sumOf { it.total.toDouble() } }
+
+        monthOrder.map { label ->
+            val v = totalsByLabel[label] ?: 0.0
+            Bars(
+                label = label,
+                values = listOf(
+                    Bars.Data(
+                        label = "Total Pelanggan Keseluruhan",
+                        value = v,
+                        color = Brush.verticalGradient(
+                            listOf(
+                                Color(0xFF0095e6),
+                                Color(0xFF4f79ff),
+                            )
+                        )
+                    )
+                )
+            )
+        }
+    }
+
+    val dataMax = remember(barsData) {
+        barsData.maxOfOrNull { it.values.maxOfOrNull { d -> d.value } ?: 0.0 } ?: 0.0
+    }
+    val yMax = ceil(maxOf(state.totalCust.toDouble(), dataMax)).toInt()
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Card(
+            modifier = Modifier
+                .height(410.dp)
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .border(2.dp, Color.Transparent, RoundedCornerShape(12.dp)),
+            elevation = CardDefaults.elevatedCardElevation(2.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 12.dp)
+            ) {
+                if (state.barChart == null || state.barChart.data.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Tidak ada data bar chart",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    ColumnChart(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = 22.dp, end = 12.dp),
+                        data = barsData,
+                        maxValue = yMax.toDouble(),
+
+                        barProperties = BarProperties(
+                            cornerRadius = Bars.Data.Radius.Rectangle(
+                                topRight = 6.dp,
+                                topLeft = 6.dp
+                            ),
+                            spacing = 1.dp,
+                            thickness = 20.dp
+                        ),
+                        indicatorProperties = HorizontalIndicatorProperties(
+                            textStyle = TextStyle(fontSize = 12.sp, color = Color.Black),
+                            count = IndicatorCount.StepBased(stepBy = 2.0),
+                            position = IndicatorPosition.Horizontal.Start,
+                            contentBuilder = { value -> value.toInt().toString() }
+                        ),
+                        gridProperties = GridProperties(),
+                        labelProperties = LabelProperties(
+                            enabled = true,
+                            textStyle = TextStyle(fontSize = 12.sp, color = Color.Black)
+                        ),
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        animationMode = AnimationMode.Together(delayBuilder = { it * 100L }),
+                        animationDelay = 300,
+                        popupProperties = PopupProperties(
+                            textStyle = TextStyle(
+                                fontSize = 11.sp,
+                                color = Color.White,
+                            ),
+                            contentBuilder = { _, _, value ->
+                                val jumlah = value.toInt()
+                                "$jumlah Pelanggan Tercatat"
+                            },
+                            containerColor = Color(0xff414141),
+                        ),
+                        labelHelperProperties = LabelHelperProperties(
+                            textStyle = TextStyle(
+                                fontSize = 12.sp,
+                                color = Color.Black
+                            )
+                        ),
+                        onBarClick = { popupData ->
+                            println(popupData.bar)
+                        },
+                        onBarLongClick = { popupData ->
+                            println("long: ${popupData.bar}")
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HistorySection(
+    records: List<MeterRecord>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit
+) {
     val listState = rememberLazyListState()
     val navigator = LocalNavigator.currentOrThrow
+    val ptrState = rememberPullToRefreshState()
 
-    if (records.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Belum ada history", color = Color.Gray)
-        }
-    } else {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            items(records) { records ->
-
-                ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp, horizontal = 12.dp)
-                        .clickable {
-                            navigator.push(RecordDetailScreen(url = records.receipt,true))
-                        }
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("${records.customer.name}", style = MaterialTheme.typography.titleMedium)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-
-                            Column {
-                                Text("Meter: ${records.meter}")
-                                Text("Status: ${records.status}")
-                                Text("Total: ${records.total_amount}")
-                                Text("Tanggal: ${records.created_at_formatted}")
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        state = ptrState,
+    ) {
+        if (records.isEmpty()) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Belum ada history", color = Color.Gray)
+            }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                items(records) { record ->
+                    ElevatedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
+                            .clickable {
+                                navigator.root().push(
+                                    RecordDetailScreen(record.receipt, record.id, true)
+                                )
+                            }
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(
+                                "${record.customer.name}",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column { Text("Status: ${record.status}") }
                             }
                         }
                     }
@@ -250,258 +920,5 @@ fun HistorySection(records: List<MeterRecord>){//records: List<MeterRecord>
             }
         }
     }
-}
-
-@Composable
-fun PieChart(){
-    Text("Ini Pie Chart")
-}
-@Composable
-fun Barchart() {
-    val data = remember {
-        listOf(
-            Bars(
-                label = "Jan",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 12.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Feb",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 15.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Mar",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 20.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Apr",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 20.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Mei",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 15.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Jun",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 22.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Jul",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 23.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Aug",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 25.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Sep",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 30.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Oct",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 20.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Nov",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 22.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-            Bars(
-                label = "Des",
-                values = listOf(
-                    Bars.Data(
-                        label = "Pelanggan",
-                        value = 20.0,
-                        color = Brush.verticalGradient(
-                            listOf(
-                                Color(0xFF0095e6),
-                                Color(0xFF4f79ff),
-                            )
-                        )
-                    ),
-                )
-            ),
-        )
-    }
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Card(modifier=Modifier.height(270.dp).fillMaxWidth()
-            .border(2.dp,Color.Transparent, RoundedCornerShape(12.dp)),
-            elevation = CardDefaults.elevatedCardElevation(2.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.White
-            )
-        ) {
-            Box(modifier = Modifier.fillMaxSize().padding(vertical = 12.dp)){
-                ColumnChart(
-                    modifier= Modifier
-                        .fillMaxSize()
-                        .padding(start = 22.dp, end = 12.dp)
-                    ,
-                    data = data,
-                    barProperties = BarProperties(
-                        cornerRadius = Bars.Data.Radius.Rectangle(topRight = 6.dp, topLeft = 6.dp),
-                        spacing = 1.dp,
-                        thickness = 20.dp
-                    ),
-                    indicatorProperties = HorizontalIndicatorProperties(
-                        textStyle = TextStyle(fontSize = 12.sp, color = Color.Black),
-                        count = IndicatorCount.CountBased(count = 4),
-                        position = IndicatorPosition.Horizontal.Start,
-                    ),
-                    gridProperties = columnGridProperties,
-                    labelProperties = LabelProperties(
-                        enabled = true,
-                        textStyle = TextStyle(fontSize = 12.sp, color = Color.Black)
-                    ),
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessLow
-                    ),
-                    animationMode = AnimationMode.Together(delayBuilder = {it*100L}),
-                    animationDelay = 300,
-                    popupProperties = PopupProperties(
-                        textStyle = TextStyle(
-                            fontSize = 11.sp,
-                            color = Color.White,
-                        ),
-                        contentBuilder = { dataIndex, valueIndex, value ->
-                            value.format(1) + " Million" + " - dataIdx: " + dataIndex + ", valueIdx: " + valueIndex
-                        },
-                        containerColor = Color(0xff414141),
-                    ),
-                    labelHelperProperties = LabelHelperProperties(textStyle = TextStyle(fontSize = 12.sp, color = Color.Black)),
-                    onBarClick = { popupData ->
-                        println(popupData.bar)
-                    },
-                    onBarLongClick = { popupData ->
-                        println("long: ${popupData.bar}")
-                    }
-                )
-            }
-        }
-    }
-
 }
 

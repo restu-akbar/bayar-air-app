@@ -4,10 +4,10 @@ import kotlinx.serialization.Serializable
 import org.com.bayarair.data.dto.PelangganDto
 
 @Serializable
-data class MeterRecord(
+data class User(
     val id: String,
-    val meter: Int,
-    val receipt: String,
-    val status: String,
-    val customer: Pelanggan,
+    val name: String,
+    val username: String,
+    val email: String,
+    val phone_number: String,
 )

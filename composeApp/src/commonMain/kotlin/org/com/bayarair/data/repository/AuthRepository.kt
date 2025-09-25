@@ -14,10 +14,8 @@ class AuthRepository(private val client: HttpClient) {
     // POST /login -> { status, message, data: { user, token } }
     suspend fun login(login: String, password: String): Result<BaseResponse<LoginResponse>> = runCatching {
         val res = client.post("$BASE_URL/login") {
-            contentType(ContentType.Application.Json)
             setBody(LoginRequest(login, password))
         }
-
         res.unwrapFlexible<LoginResponse>()
       }
 

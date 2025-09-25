@@ -20,6 +20,8 @@ private val LightColors = lightColorScheme(
     onTertiaryContainer = OnTertiaryContainer,
     background = Background,
     onBackground = OnBackground,
+    error = Error,
+    onError = OnError,
 )
 
 private val DarkColors = darkColorScheme(

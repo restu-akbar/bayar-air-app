@@ -26,6 +26,7 @@ ksp="2.2.20-2.0.2"
 room = "2.8.0"
 voyager="1.1.0-beta03"
 webView="0.36.0"
+datetime="0.7.1"
 
 composeChartsVersion = "0.1.11"
 
@@ -80,6 +81,8 @@ navigator-viewmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", vers
 navigator-koin = { module = "cafe.adriel.voyager:voyager-koin", version.ref = "voyager"}
 
 webView = { module = "com.google.accompanist:accompanist-webview", version.ref = "webView" }
+
+datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

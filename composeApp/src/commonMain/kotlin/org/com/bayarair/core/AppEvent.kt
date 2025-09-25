@@ -1,6 +1,8 @@
 package org.com.bayarair.core
 
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 sealed class AppEvent {
@@ -11,6 +13,19 @@ sealed class AppEvent {
     data class ShowSnackbar(
         val message: String,
     ) : AppEvent()
+}
+
+class AuthState {
+    private val _isLoggingOut = MutableStateFlow(false)
+    val isLoggingOut: StateFlow<Boolean> = _isLoggingOut
+
+    fun beginLogout() {
+        _isLoggingOut.value = true
+    }
+
+    fun endLogout() {
+        _isLoggingOut.value = false
+    }
 }
 
 class AppEvents {

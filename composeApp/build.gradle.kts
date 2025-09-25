@@ -47,6 +47,7 @@ kotlin {
                 implementation(libs.navigator.koin)
                 // this the library
                 implementation(libs.ehsannarmani.compose.charts)
+                implementation(libs.datetime)
             }
         }
         val androidMain by getting {

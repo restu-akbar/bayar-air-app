@@ -1,5 +1,6 @@
 package org.com.bayarair.data.model
 
+import kotlinx.serialization.Serializable
 import org.com.bayarair.data.dto.PelangganDto
 
 data class Customer(
@@ -18,3 +19,8 @@ fun PelangganDto.toDomain(): Customer =
         hp = phoneNumber,
         meterLalu = meterLalu,
     )
+
+@Serializable
+data class TotalCustomer(
+    val total: Int,
+)

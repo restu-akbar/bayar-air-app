@@ -58,9 +58,10 @@ import org.com.bayarair.presentation.component.loadingOverlay
 import org.com.bayarair.presentation.navigation.HomeTab
 import org.com.bayarair.presentation.navigation.LocalPreviousTabKey
 import org.com.bayarair.presentation.navigation.ProfileTab
+import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.viewmodel.OtherFee
 import org.com.bayarair.presentation.viewmodel.RecordEvent
-import org.com.bayarair.presentation.viewmodel.RecordScreenModel
+import org.com.bayarair.presentation.viewmodel.RecordViewModel
 import org.com.bayarair.utils.formatRupiah
 import org.com.bayarair.utils.groupThousands
 import java.io.File
@@ -69,7 +70,7 @@ object RecordScreen : Screen {
     @OptIn(ExperimentalMaterialApi::class)
     @Composable
     override fun Content() {
-        val vm: RecordScreenModel = koinScreenModel()
+        val vm: RecordViewModel = koinScreenModel()
         val state by vm.state.collectAsState()
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.current
@@ -94,7 +95,7 @@ object RecordScreen : Screen {
                     is RecordEvent.ShowSnackbar -> snackbarHostState.showSnackbar(ev.message)
                     is RecordEvent.Saved -> {
                         bitmap = null
-                        navigator?.replaceAll(RecordDetailScreen(ev.url, ev.recordId, false))
+                        navigator?.root()?.push(RecordDetailScreen(ev.url, ev.recordId, false))
                     }
 
                     is RecordEvent.ShowLoading -> {
@@ -163,7 +164,7 @@ object RecordScreen : Screen {
         Scaffold(
             containerColor = bgBlue,
             snackbarHost = { SnackbarHost(snackbarHostState) }
-        ) { padding ->
+        ) { 
             Box(
                 modifier = Modifier
                     .fillMaxSize()

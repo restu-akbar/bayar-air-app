@@ -3,15 +3,16 @@ package org.com.bayarair.di
 import io.ktor.client.HttpClient
 import org.com.bayarair.core.AppEvents
 import org.com.bayarair.data.repository.AuthRepository
-import org.com.bayarair.data.repository.MeterRecordRepository
+import org.com.bayarair.data.repository.CustomerRepository
+import org.com.bayarair.data.repository.ProfileRepository
 import org.com.bayarair.data.repository.RecordRepository
 import org.com.bayarair.data.token.TokenHandler
 import org.com.bayarair.platform.createHttpClient
-import org.com.bayarair.presentation.screens.HomeScreen
 import org.com.bayarair.presentation.viewmodel.AuthViewModel
 import org.com.bayarair.presentation.viewmodel.HomeViewModel
+import org.com.bayarair.presentation.viewmodel.ProfileViewModel
 import org.com.bayarair.presentation.viewmodel.RecordDetailViewModel
-import org.com.bayarair.presentation.viewmodel.RecordScreenModel
+import org.com.bayarair.presentation.viewmodel.RecordViewModel
 import org.com.bayarair.presentation.viewmodel.SplashViewModel
 import org.koin.dsl.module
 
@@ -22,7 +23,8 @@ val commonModule =
 
         single<AuthRepository> { AuthRepository(get<HttpClient>()) }
         single<RecordRepository> { RecordRepository(get<HttpClient>()) }
-        single<MeterRecordRepository> { MeterRecordRepository(get<HttpClient>()) }
+        single<ProfileRepository> { ProfileRepository(get<HttpClient>()) }
+        single<CustomerRepository> { CustomerRepository(get<HttpClient>()) }
 
         factory<AuthViewModel> {
             AuthViewModel(
@@ -32,7 +34,10 @@ val commonModule =
             )
         }
         factory<SplashViewModel> { SplashViewModel(get<TokenHandler>()) }
-        factory<HomeViewModel> { HomeViewModel(get<MeterRecordRepository>()) }
-        factory<RecordScreenModel> { RecordScreenModel(get<RecordRepository>()) }
+        factory<HomeViewModel> { HomeViewModel(get<RecordRepository>(), get<CustomerRepository>(), get<AppEvents>()) }
+        factory<RecordViewModel> { RecordViewModel(get<RecordRepository>(), get<CustomerRepository>()) }
         factory<RecordDetailViewModel> { RecordDetailViewModel(get<RecordRepository>()) }
+        factory<ProfileViewModel> {
+            ProfileViewModel(get<ProfileRepository>(), get<AppEvents>())
+        }
     }

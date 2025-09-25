@@ -39,6 +39,7 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import org.com.bayarair.presentation.component.PdfViewer
 import org.com.bayarair.presentation.component.loadingOverlay
 import org.com.bayarair.presentation.navigation.TabContainer
+import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.viewmodel.RecordDetailEvent
 import org.com.bayarair.presentation.viewmodel.RecordDetailViewModel
 import org.com.bayarair.utils.LocalReceiptPrinter
@@ -53,7 +54,7 @@ data class RecordDetailScreen(
     override fun Content() {
         val vm: RecordDetailViewModel = koinScreenModel()
         val printer = LocalReceiptPrinter.current
-        val navigator = LocalNavigator.currentOrThrow
+        val navigator = LocalNavigator.currentOrThrow.root()
         val snackbarHostState = remember { SnackbarHostState() }
 
         var showLoading by remember { mutableStateOf(false) }
@@ -95,7 +96,7 @@ data class RecordDetailScreen(
                             titleContentColor = MaterialTheme.colorScheme.onBackground,
                             navigationIconContentColor = MaterialTheme.colorScheme.onBackground,
                         ),
-                    windowInsets = WindowInsets(0, 0, 0, 0),
+                    windowInsets = TopAppBarDefaults.windowInsets,
                 )
             },
             bottomBar = {

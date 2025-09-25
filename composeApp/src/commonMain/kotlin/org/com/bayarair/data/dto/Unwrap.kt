@@ -9,8 +9,8 @@ import org.com.bayarair.data.model.MeterRecord
 suspend fun HttpResponse.extractErrorMessage(preRead: String? = null): String {
     val txt = preRead ?: bodyAsText()
     if (txt.isBlank()) return "HTTP ${status.value} ${status.description}"
-    val err = Serde.relaxed.decodeFromString<ErrorResponse>(txt)
     return try {
+        val err = Serde.relaxed.decodeFromString<ErrorResponse>(txt)
         err.errors
             ?.values
             ?.flatten()
@@ -43,3 +43,5 @@ suspend inline fun <reified T> HttpResponse.unwrapFlexible(): BaseResponse<T> {
         throw ApiException(status.value, extractErrorMessage(preRead = txt))
     }
 }
+
+fun Throwable.isUnauthorized(): Boolean = (this as? ApiException)?.code == 401

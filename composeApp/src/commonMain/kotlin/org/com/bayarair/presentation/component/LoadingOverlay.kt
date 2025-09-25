@@ -15,10 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun loadingOverlay(loadMessage: String) {
+fun loadingOverlay(loadMessage: String = "") {
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background.copy(alpha = 0.92f),
+        color = MaterialTheme.colorScheme.background,
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -28,7 +28,7 @@ fun loadingOverlay(loadMessage: String) {
                     strokeWidth = 3.dp,
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("$loadMessage…")
+                Text("$loadMessage")
             }
         }
     }

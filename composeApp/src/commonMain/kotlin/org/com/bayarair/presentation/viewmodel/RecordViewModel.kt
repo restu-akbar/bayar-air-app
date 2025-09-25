@@ -11,11 +11,13 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.com.bayarair.data.model.Customer
+import org.com.bayarair.data.repository.CustomerRepository
 import org.com.bayarair.data.repository.RecordRepository
 import java.io.ByteArrayOutputStream
 
-class RecordScreenModel(
+class RecordViewModel(
     private val repo: RecordRepository,
+    private val custRepo: CustomerRepository,
 ) : StateScreenModel<RecordState>(RecordState()) {
     private val _events = MutableSharedFlow<RecordEvent>()
     val events: SharedFlow<RecordEvent> = _events.asSharedFlow()
@@ -31,7 +33,7 @@ class RecordScreenModel(
                     val elapsed =
                         kotlin.system.measureTimeMillis {
                             val hargaDef = async { repo.getHarga() }
-                            val custDef = async { repo.getCustomers() }
+                            val custDef = async { custRepo.getCustomers() }
 
                             val hargaRes = hargaDef.await()
                             val custRes = custDef.await()
@@ -244,6 +246,7 @@ data class OtherFee(
 )
 
 data class RecordState(
+
     val isLoading: Boolean = false,
     val air: Long = 0L,
     val admin: Long = 0L,

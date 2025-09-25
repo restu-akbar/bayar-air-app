@@ -28,7 +28,6 @@ class RecordDetailViewModel(
             }
             return
         }
-        Log.d("recorddetail", recordId)
 
         screenModelScope.launch {
             _events.emit(RecordDetailEvent.ShowLoading("Print Struk…"))
