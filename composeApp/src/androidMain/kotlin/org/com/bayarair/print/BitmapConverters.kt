@@ -1,6 +1,7 @@
 package org.com.bayarair.print
 
 import android.graphics.Bitmap
+import androidx.core.graphics.scale
 
 fun bitmapToEscPosRasterBytes(
     src: Bitmap,
@@ -9,7 +10,7 @@ fun bitmapToEscPosRasterBytes(
     val targetW = 384
     val scale = targetW.toFloat() / src.width
     val targetH = (src.height * scale).toInt().coerceAtLeast(1)
-    val bmp = Bitmap.createScaledBitmap(src, targetW, targetH, true)
+    val bmp = src.scale(targetW, targetH)
 
     val widthBytes = (bmp.width + 7) / 8
     val out = ByteArray(widthBytes * bmp.height)

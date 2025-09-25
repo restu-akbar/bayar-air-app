@@ -1,5 +1,7 @@
 package org.com.bayarair.presentation.screens
 
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -11,8 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -29,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
@@ -112,19 +114,27 @@ data class RecordDetailScreen(
                             .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 40.dp),
                     horizontalArrangement = Arrangement.Center,
                 ) {
-                    Button(
-                        onClick = { vm.printReceipt(printer, url, recordId) },
-                        modifier = Modifier.weight(1f),
+                    DualActionButton(
+                        text = "Print",
                         enabled = !showLoading,
-                        colors =
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                            ),
-                        shape = RoundedCornerShape(6.dp),
-                    ) {
-                        Text(if (showLoading) "Memproses…" else "Print")
-                    }
+                        onClick = {
+                            vm.printReceipt(
+                                printer,
+                                url,
+                                recordId
+                            )
+                        },
+                        onLongClick = {
+                            vm.printReceipt(
+                                printer,
+                                url,
+                                recordId,
+                                forcePick = true
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
 
                     Spacer(modifier = Modifier.width(12.dp))
                 }
@@ -149,3 +159,45 @@ data class RecordDetailScreen(
         }
     }
 }
+
+@Composable
+fun DualActionButton(
+    text: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val container =
+        if (enabled) MaterialTheme.colorScheme.tertiaryContainer
+        else MaterialTheme.colorScheme.surfaceVariant
+    val content =
+        if (enabled) MaterialTheme.colorScheme.onTertiaryContainer
+        else MaterialTheme.colorScheme.onSurfaceVariant
+
+    val interaction = remember { MutableInteractionSource() }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(6.dp),
+        color = container,
+        contentColor = content,
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
+    ) {
+        Box(
+            modifier = Modifier
+                .combinedClickable(
+                    enabled = enabled,
+                    interactionSource = interaction,
+                    onClick = onClick,
+                    onLongClick = onLongClick,
+                )
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+

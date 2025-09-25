@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import androidx.core.graphics.createBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -19,10 +20,9 @@ suspend fun renderPdfToBitmaps(context: Context, pdfFile: File): List<Bitmap> =
         for (i in 0 until renderer.pageCount) {
             val page = renderer.openPage(i)
             val scale = 384f / page.width
-            val bmp = Bitmap.createBitmap(
+            val bmp = createBitmap(
                 (page.width * scale).toInt().coerceAtLeast(384),
-                (page.height * scale).toInt().coerceAtLeast(1),
-                Bitmap.Config.ARGB_8888
+                (page.height * scale).toInt().coerceAtLeast(1)
             )
             val canvas = Canvas(bmp)
             canvas.drawColor(Color.WHITE)

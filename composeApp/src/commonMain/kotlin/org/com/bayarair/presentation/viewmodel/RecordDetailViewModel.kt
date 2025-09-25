@@ -21,29 +21,25 @@ class RecordDetailViewModel(
         printer: ReceiptPrinter?,
         url: String,
         recordId: String,
+        forcePick: Boolean = false,
     ) {
         if (printer == null) {
-            screenModelScope.launch {
-                _events.emit(RecordDetailEvent.ShowSnackbar("Fitur printer belum tersedia di device ini"))
-            }
+            screenModelScope.launch { _events.emit(RecordDetailEvent.ShowSnackbar("Fitur printer belum tersedia di device ini")) }
             return
         }
-
         screenModelScope.launch {
             _events.emit(RecordDetailEvent.ShowLoading("Print Struk…"))
             try {
-                val result = printer.printPdfFromUrl(url)
-                if (result) {
+                val ok = printer.printPdfFromUrl(url, forcePick)
+                if (ok) {
                     repo.updateRecord(recordId)
                     _events.emit(RecordDetailEvent.ShowSnackbar("Struk berhasil dicetak!"))
                     _events.emit(RecordDetailEvent.NavigateNext)
                 } else {
                     _events.emit(RecordDetailEvent.ShowSnackbar("Terjadi kesalahan saat print struk"))
                 }
-            } catch (e: Throwable) {
-                _events.emit(
-                    RecordDetailEvent.ShowSnackbar("Gagal cetak: ${e.message ?: "Unknown error"}"),
-                )
+            } catch (t: Throwable) {
+                _events.emit(RecordDetailEvent.ShowSnackbar("Gagal cetak: ${t.message ?: "Unknown error"}"))
             } finally {
                 _events.emit(RecordDetailEvent.HideLoading)
             }

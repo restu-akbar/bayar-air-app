@@ -3,6 +3,7 @@ package org.com.bayarair.presentation.screens
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -14,6 +15,8 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -42,12 +45,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -72,9 +77,12 @@ import ir.ehsannarmani.compose_charts.models.IndicatorPosition
 import ir.ehsannarmani.compose_charts.models.LabelHelperProperties
 import ir.ehsannarmani.compose_charts.models.LabelProperties
 import ir.ehsannarmani.compose_charts.models.PopupProperties
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.com.bayarair.data.model.MeterRecord
+import org.com.bayarair.presentation.component.loadingOverlay
 import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.theme.inactiveButtonText
 import org.com.bayarair.presentation.viewmodel.HomeState
@@ -132,108 +140,112 @@ object HomeScreen : Screen {
         }
 
         Scaffold { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp)
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (state.pieChart !== null || profileState.user !== null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
 
-                    PullToRefreshBox(
-                        isRefreshing = isTopRefreshing,
-                        onRefresh = {
-                            refreshOwner = RefreshOwner.TOP
-                            vmProfile.getUser()
-                            if (switcher) {
-                                if (graph) {
-                                    vm.getPieChartData(force = true, month = currentMonth())
+                        PullToRefreshBox(
+                            isRefreshing = isTopRefreshing,
+                            onRefresh = {
+                                refreshOwner = RefreshOwner.TOP
+                                vmProfile.getUser()
+                                if (switcher) {
+                                    if (graph) {
+                                        vm.getPieChartData(force = true, month = currentMonth())
+                                    } else {
+                                        val yearNow = Clock.System.now()
+                                            .toLocalDateTime(TimeZone.currentSystemDefault()).year
+                                        vm.getBarChartData(force = true, year = yearNow)
+                                    }
                                 } else {
-                                    val yearNow = Clock.System.now()
-                                        .toLocalDateTime(TimeZone.currentSystemDefault()).year
-                                    vm.getBarChartData(force = true, year = yearNow)
+                                    vm.loadHistory(force = true)
                                 }
-                            } else {
-                                vm.loadHistory(force = true)
-                            }
-                        },
-                        state = globalPtr,
-                    ) {
-                        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                            Text(
-                                text = "Bayar Air Dashboard",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = "Selamat Datang, ${profileState.user?.name ?: "User"} !",
-                                color = Color.White,
-                                modifier = Modifier.fillMaxWidth().basicMarquee(),
-                                maxLines = 1,
-                                overflow = TextOverflow.Visible
-                            )
-                            Row(
-                                modifier = Modifier.padding(vertical = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Button(
-                                    onClick = { switcher = true },
-                                    shape = RoundedCornerShape(6.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (switcher)
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        else
-                                            MaterialTheme.colorScheme.secondary,
-                                        contentColor = if (switcher) Color.Black
-                                        else MaterialTheme.colorScheme.inactiveButtonText,
-                                    )
+                            },
+                            state = globalPtr,
+                        ) {
+                            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                                Text(
+                                    text = "Bayar Air Dashboard",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "Selamat Datang, ${profileState.user?.name ?: "User"} !",
+                                    color = Color.White,
+                                    modifier = Modifier.fillMaxWidth().basicMarquee(),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Visible
+                                )
+                                Row(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Icon(Icons.Default.QueryStats, null, Modifier.size(18.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("Statistik")
-                                }
-                                Spacer(Modifier.size(12.dp))
-                                Button(
-                                    onClick = { switcher = false },
-                                    shape = RoundedCornerShape(6.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (!switcher)
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        else
-                                            MaterialTheme.colorScheme.secondary,
-                                        contentColor = if (!switcher) Color.Black
-                                        else MaterialTheme.colorScheme.inactiveButtonText,
-                                    )
-                                ) {
-                                    Icon(Icons.Default.History, null, Modifier.size(18.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("History")
+                                    Button(
+                                        onClick = { switcher = true },
+                                        shape = RoundedCornerShape(6.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (switcher)
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.secondary,
+                                            contentColor = if (switcher) Color.Black
+                                            else MaterialTheme.colorScheme.inactiveButtonText,
+                                        )
+                                    ) {
+                                        Icon(Icons.Default.QueryStats, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("Statistik")
+                                    }
+                                    Spacer(Modifier.size(12.dp))
+                                    Button(
+                                        onClick = { switcher = false },
+                                        shape = RoundedCornerShape(6.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (!switcher)
+                                                MaterialTheme.colorScheme.primaryContainer
+                                            else
+                                                MaterialTheme.colorScheme.secondary,
+                                            contentColor = if (!switcher) Color.Black
+                                            else MaterialTheme.colorScheme.inactiveButtonText,
+                                        )
+                                    ) {
+                                        Icon(Icons.Default.History, null, Modifier.size(18.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text("History")
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (switcher) {
-                        ChartSwitcher(
-                            vm = vm,
-                            graph = graph,
-                            onGraphChanged = { graph = it },
-                            isOwnerChart = (refreshOwner == RefreshOwner.CHART),
-                            onLocalRefreshStart = { refreshOwner = RefreshOwner.CHART }
-                        )
-                    } else {
-                        HistorySection(
-                            records = state.history as List<MeterRecord>,
-                            isRefreshing = (refreshOwner == RefreshOwner.HISTORY) && state.loading,
-                            onRefresh = {
-                                refreshOwner = RefreshOwner.HISTORY
-                                vm.loadHistory(force = true)
-                            }
-                        )
+                        if (switcher) {
+                            ChartSwitcher(
+                                vm = vm,
+                                graph = graph,
+                                onGraphChanged = { graph = it },
+                                isOwnerChart = (refreshOwner == RefreshOwner.CHART),
+                                onLocalRefreshStart = { refreshOwner = RefreshOwner.CHART }
+                            )
+                        } else {
+                            HistorySection(
+                                records = state.history as List<MeterRecord>,
+                                isRefreshing = (refreshOwner == RefreshOwner.HISTORY) && state.loading,
+                                onRefresh = {
+                                    refreshOwner = RefreshOwner.HISTORY
+                                    vm.loadHistory(force = true)
+                                }
+                            )
+                        }
                     }
                 }
+            } else {
+                loadingOverlay()
             }
         }
     }
@@ -909,14 +921,61 @@ fun HistorySection(
                         horizontalAlignment = Alignment.Start
                     ) {
                         items(records, key = { it.id }) { record ->
+                            val scheme = MaterialTheme.colorScheme
+                            val interaction = remember { MutableInteractionSource() }
+                            val isPressed by interaction.collectIsPressedAsState()
+
+                            // animasi cepat biar “kerasa”
+                            val overlayAlpha by animateFloatAsState(
+                                targetValue = if (isPressed) 0.18f else 0f,   // naikin kalau mau lebih kentara (0.22f oke)
+                                animationSpec = tween(durationMillis = 60),
+                                label = "pressOverlayAlpha"
+                            )
+                            val scale by animateFloatAsState(
+                                targetValue = if (isPressed) 0.985f else 1f,
+                                animationSpec = tween(durationMillis = 60),
+                                label = "pressScale"
+                            )
+
+                            val scope = rememberCoroutineScope()
+
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable {
-                                        navigator.root().push(
-                                            RecordDetailScreen(record.receipt, record.id, true)
-                                        )
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
                                     }
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .drawWithContent {
+                                        drawContent()
+                                        if (overlayAlpha > 0f) {
+                                            drawRect(
+                                                color = scheme.onPrimaryContainer, // kontras dgn primaryContainer
+                                                alpha = overlayAlpha
+                                            )
+                                        }
+                                    }
+                                    .clickable(
+                                        interactionSource = interaction,
+                                        indication = ripple(
+                                            bounded = true,
+                                            radius = 280.dp,                             // ripple besar
+                                            color = scheme.onPrimaryContainer            // warna kontras
+                                        ),
+                                        onClick = {
+                                            scope.launch {
+                                                delay(110) // beri waktu ripple muncul dulu
+                                                navigator.root().push(
+                                                    RecordDetailScreen(
+                                                        record.receipt,
+                                                        record.id,
+                                                        true
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    )
                                     .padding(vertical = 10.dp)
                             ) {
                                 Row(
@@ -944,10 +1003,9 @@ fun HistorySection(
                                     Text(
                                         text = record.customer.address,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = scheme.onSurfaceVariant,
                                         maxLines = 1
                                     )
-                                    val scheme = MaterialTheme.colorScheme
 
                                     val (statusLabel, bgColor, fgColor) = when (record.status) {
                                         "sudah_bayar" -> Triple(
@@ -993,4 +1051,3 @@ fun HistorySection(
         }
     }
 }
-

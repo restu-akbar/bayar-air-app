@@ -23,7 +23,7 @@ class BluetoothEscPosPrinter(
 ) : ReceiptPrinter {
     private val sppUuid: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
-    override suspend fun printPdfFromUrl(url: String): Boolean =
+    override suspend fun printPdfFromUrl(url: String, forcePick: Boolean): Boolean =
         withContext(Dispatchers.IO) {
             Log.d(TAG, "printPdfFromUrl start | mac=$printerMac url=$url")
 
@@ -110,7 +110,7 @@ class BluetoothEscPosPrinter(
             error("Gagal download PDF: $code $msg")
         }
 
-        val body = res.body ?: error("Body kosong")
+        val body = res.body
         val tmp = File.createTempFile("struk_", ".pdf", context.cacheDir)
         body.byteStream().use { input ->
             FileOutputStream(tmp).use { output -> input.copyTo(output) }
