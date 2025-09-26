@@ -70,7 +70,7 @@ object RecordScreen : Screen {
     @OptIn(ExperimentalMaterialApi::class)
     @Composable
     override fun Content() {
-        val vm: RecordViewModel = koinScreenModel()
+        val vm: RecordViewModel = koinScreenModel<RecordViewModel>()
         val state by vm.state.collectAsState()
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.current
@@ -164,7 +164,7 @@ object RecordScreen : Screen {
         Scaffold(
             containerColor = bgBlue,
             snackbarHost = { SnackbarHost(snackbarHostState) }
-        ) { 
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -193,7 +193,9 @@ object RecordScreen : Screen {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
                             contentDescription = "Kembali",
-                            tint = textOnBg
+                            tint = textOnBg,
+                            modifier = Modifier.size(18.dp)
+
                         )
                     }
 
@@ -206,7 +208,7 @@ object RecordScreen : Screen {
                         textAlign = TextAlign.Center,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp)
+                            .padding(bottom = 10.dp)
                     )
 
                     // ====== Pelanggan (dropdown) ======
@@ -424,8 +426,8 @@ object RecordScreen : Screen {
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     ) {
                         Icon(Icons.Outlined.Upload, contentDescription = null)
@@ -474,8 +476,8 @@ object RecordScreen : Screen {
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             ) {
                                 Icon(Icons.Outlined.Add, contentDescription = null)

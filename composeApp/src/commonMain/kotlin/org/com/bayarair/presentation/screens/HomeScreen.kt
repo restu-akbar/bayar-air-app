@@ -10,8 +10,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
@@ -33,6 +34,8 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Remove
@@ -47,9 +50,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -61,6 +67,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
@@ -82,6 +89,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.com.bayarair.data.model.MeterRecord
+import org.com.bayarair.presentation.component.MarqueeText
 import org.com.bayarair.presentation.component.loadingOverlay
 import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.theme.inactiveButtonText
@@ -105,10 +113,9 @@ object HomeScreen : Screen {
     @OptIn(ExperimentalTime::class)
     @Composable
     override fun Content() {
-        val vm: HomeViewModel = koinScreenModel()
-        val vmProfile: ProfileViewModel = koinScreenModel()
+        val vm: HomeViewModel = koinScreenModel<HomeViewModel>()
+        val vmProfile: ProfileViewModel = koinScreenModel<ProfileViewModel>()
 
-        val profileLoading by vmProfile.loading.collectAsState()
         val state by vm.state.collectAsState()
         val profileState by vmProfile.state.collectAsState()
 
@@ -119,8 +126,8 @@ object HomeScreen : Screen {
 
         val isTopRefreshing = (refreshOwner == RefreshOwner.TOP)
 
-        LaunchedEffect(profileLoading, state.loading) {
-            if (!profileLoading && !state.loading) {
+        LaunchedEffect(profileState.loading, state.loading) {
+            if (!profileState.loading && !state.loading) {
                 refreshOwner = RefreshOwner.NONE
             }
         }
@@ -153,7 +160,7 @@ object HomeScreen : Screen {
                             isRefreshing = isTopRefreshing,
                             onRefresh = {
                                 refreshOwner = RefreshOwner.TOP
-                                vmProfile.getUser()
+                                vmProfile.getUser(true)
                                 if (switcher) {
                                     if (graph) {
                                         vm.getPieChartData(force = true, month = currentMonth())
@@ -167,6 +174,8 @@ object HomeScreen : Screen {
                                 }
                             },
                             state = globalPtr,
+                            modifier = Modifier
+                                .zIndex(1f)
                         ) {
                             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                                 Text(
@@ -176,13 +185,19 @@ object HomeScreen : Screen {
                                     color = Color.White
                                 )
                                 Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "Selamat Datang, ${profileState.user?.name ?: "User"} !",
-                                    color = Color.White,
-                                    modifier = Modifier.fillMaxWidth().basicMarquee(),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Visible
-                                )
+                                @OptIn(ExperimentalFoundationApi::class)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RectangleShape),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    MarqueeText(
+                                        text = "Selamat Datang, ${profileState.user?.name ?: "User"} !",
+                                        modifier = Modifier.weight(1f),
+                                        speedDpPerSec = 50f
+                                    )
+                                }
                                 Row(
                                     modifier = Modifier.padding(vertical = 12.dp),
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -223,7 +238,6 @@ object HomeScreen : Screen {
                                 }
                             }
                         }
-
                         if (switcher) {
                             ChartSwitcher(
                                 vm = vm,
@@ -239,10 +253,10 @@ object HomeScreen : Screen {
                                 onRefresh = {
                                     refreshOwner = RefreshOwner.HISTORY
                                     vm.loadHistory(force = true)
-                                }
-                            )
+                                })
                         }
                     }
+
                 }
             } else {
                 loadingOverlay()
@@ -320,21 +334,32 @@ fun ChartSwitcher(
                     months = months
                 )
             } else {
+                val cs = MaterialTheme.colorScheme
                 DropdownMenu(
                     expanded = monthMenuExpanded,
                     onDismissRequest = { monthMenuExpanded = false },
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(cs.surface)
                 ) {
-                    years.forEach { y ->
+                    years.forEachIndexed { i, y ->
+                        val selected = y == selectedYear
                         DropdownMenuItem(
                             text = { Text(y.toString()) },
                             onClick = {
                                 selectedYear = y
                                 vm.getBarChartData(force = true, year = selectedYear)
                                 monthMenuExpanded = false
-                            }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(if (selected) cs.primary else Color.Transparent),
+                            colors = MenuDefaults.itemColors(
+                                textColor = if (selected) cs.primaryContainer else cs.onSurface,
+                                leadingIconColor = if (selected) cs.primaryContainer else cs.onSurfaceVariant,
+                                trailingIconColor = if (selected) cs.primaryContainer else cs.onSurfaceVariant,
+                                disabledTextColor = cs.onSurface.copy(alpha = 0.38f)
+                            )
                         )
                     }
                 }
@@ -421,12 +446,9 @@ fun ChartSwitcher(
         state = ptrState,
     ) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            if (graph) {
-                pieChart(state)
-            } else {
-                barChart(state)
-            }
+            if (graph) pieChart(state) else barChart(state)
         }
+
     }
 }
 
@@ -680,7 +702,7 @@ fun pieChart(state: HomeState) {
                     ?: "-",
                 style = MaterialTheme.typography.titleLarge,
                 color = scheme.onPrimaryContainer,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
             )
 
             Row(
@@ -689,7 +711,7 @@ fun pieChart(state: HomeState) {
             ) {
                 Text(
                     text = "${state.pieChart?.total ?: 0}",
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.headlineLarge,
                     color = scheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold,
                 )
@@ -707,12 +729,12 @@ fun pieChart(state: HomeState) {
                         imageVector = icon,
                         contentDescription = null,
                         tint = color,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = "${formatter.format(valueChange)}%",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = color
                     )
@@ -876,6 +898,9 @@ fun barChart(state: HomeState) {
     }
 }
 
+enum class PayFilter {
+    ALL, SUDAH, BELUM
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -888,162 +913,287 @@ fun HistorySection(
     val navigator = LocalNavigator.currentOrThrow
     val ptrState = rememberPullToRefreshState()
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = onRefresh,
-        state = ptrState,
-    ) {
-        if (records.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Belum ada history", color = Color.Gray)
+    // --- state pencarian & filter ---
+    var query by rememberSaveable { mutableStateOf("") }
+    var filterExpanded by remember { mutableStateOf(false) }
+    var payFilter by rememberSaveable { mutableStateOf(PayFilter.ALL) }
+
+    val scheme = MaterialTheme.colorScheme
+
+    // filter lokal: nama + status
+    val filteredRecords = remember(records, query, payFilter) {
+        val q = query.trim()
+        records.asSequence()
+            .filter { r ->
+                if (q.isEmpty()) true else r.customer.name.contains(
+                    q,
+                    ignoreCase = true
+                )
             }
-        } else {
-            ElevatedCard(
+            .filter { r ->
+                when (payFilter) {
+                    PayFilter.ALL -> true
+                    PayFilter.SUDAH -> r.status == "sudah_bayar"
+                    PayFilter.BELUM -> r.status == "belum_bayar"
+                }
+            }
+            .toList()
+    }
+
+    PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, state = ptrState) {
+        Column(Modifier.fillMaxSize()) {
+
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                shape = RoundedCornerShape(6.dp),
-                colors = CardDefaults.elevatedCardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(
-                        "History Pencatatan",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(12.dp))
+                val shape = RoundedCornerShape(6.dp)
+                val searchHeight = 48.dp
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(searchHeight)
+                        .clip(shape)
+                        .background(scheme.primaryContainer)
+                        .padding(horizontal = 12.dp)
+                ) {
+                    var focused by remember { mutableStateOf(false) }
+                    BasicTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            color = scheme.onPrimaryContainer
+                        ),
+                        cursorBrush = SolidColor(scheme.onPrimaryContainer),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .onFocusChanged { focused = it.isFocused }
+                            .padding(vertical = 12.dp)
+                    ) { innerTextField ->
+                        Box(Modifier.fillMaxWidth()) {
+                            if (query.isEmpty() && !focused) {
+                                Text(
+                                    "Cari nama pelanggan",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = scheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                }
 
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.Start
+                Spacer(Modifier.width(8.dp))
+
+                Box {
+                    FilledIconButton(
+                        onClick = { filterExpanded = true },
+                        modifier = Modifier
+                            .height(searchHeight)
+                            .width(searchHeight)
+                            .clip(RoundedCornerShape(6.dp)),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = scheme.primaryContainer,
+                            contentColor = scheme.onPrimaryContainer
+                        ),
+                        shape = RoundedCornerShape(6.dp)
                     ) {
-                        items(records, key = { it.id }) { record ->
-                            val scheme = MaterialTheme.colorScheme
-                            val interaction = remember { MutableInteractionSource() }
-                            val isPressed by interaction.collectIsPressedAsState()
+                        Icon(Icons.Default.FilterList, contentDescription = "Filter status")
+                    }
 
-                            // animasi cepat biar “kerasa”
-                            val overlayAlpha by animateFloatAsState(
-                                targetValue = if (isPressed) 0.18f else 0f,   // naikin kalau mau lebih kentara (0.22f oke)
-                                animationSpec = tween(durationMillis = 60),
-                                label = "pressOverlayAlpha"
+                    DropdownMenu(
+                        expanded = filterExpanded,
+                        onDismissRequest = { filterExpanded = false },
+                        modifier = Modifier.background(
+                            MaterialTheme.colorScheme.primaryContainer.copy(
+                                alpha = 0.9f
                             )
-                            val scale by animateFloatAsState(
-                                targetValue = if (isPressed) 0.985f else 1f,
-                                animationSpec = tween(durationMillis = 60),
-                                label = "pressScale"
-                            )
+                        )
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Semua") },
+                            onClick = { payFilter = PayFilter.ALL; filterExpanded = false },
+                            leadingIcon = {
+                                if (payFilter == PayFilter.ALL) Icon(
+                                    Icons.Default.Check,
+                                    null
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Sudah Bayar") },
+                            onClick = { payFilter = PayFilter.SUDAH; filterExpanded = false },
+                            leadingIcon = {
+                                if (payFilter == PayFilter.SUDAH) Icon(
+                                    Icons.Default.Check,
+                                    null
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Belum Bayar") },
+                            onClick = { payFilter = PayFilter.BELUM; filterExpanded = false },
+                            leadingIcon = {
+                                if (payFilter == PayFilter.BELUM) Icon(
+                                    Icons.Default.Check,
+                                    null
+                                )
+                            }
+                        )
+                    }
+                }
+            }
 
-                            val scope = rememberCoroutineScope()
+            if (filteredRecords.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        "Belum ada history",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            } else {
+                ElevatedCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    colors = CardDefaults.elevatedCardColors(containerColor = scheme.primaryContainer)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(
+                            "History Pencatatan",
+                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(8.dp))
 
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .graphicsLayer {
-                                        scaleX = scale
-                                        scaleY = scale
-                                    }
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .drawWithContent {
-                                        drawContent()
-                                        if (overlayAlpha > 0f) {
-                                            drawRect(
-                                                color = scheme.onPrimaryContainer, // kontras dgn primaryContainer
-                                                alpha = overlayAlpha
-                                            )
-                                        }
-                                    }
-                                    .clickable(
-                                        interactionSource = interaction,
-                                        indication = ripple(
-                                            bounded = true,
-                                            radius = 280.dp,                             // ripple besar
-                                            color = scheme.onPrimaryContainer            // warna kontras
-                                        ),
-                                        onClick = {
-                                            scope.launch {
-                                                delay(110) // beri waktu ripple muncul dulu
-                                                navigator.root().push(
-                                                    RecordDetailScreen(
-                                                        record.receipt,
-                                                        record.id,
-                                                        true
-                                                    )
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            items(filteredRecords, key = { it.id }) { record ->
+                                val interaction = remember { MutableInteractionSource() }
+                                val isPressed by interaction.collectIsPressedAsState()
+                                val overlayAlpha by animateFloatAsState(
+                                    targetValue = if (isPressed) 0.16f else 0f,
+                                    animationSpec = tween(60),
+                                    label = "pressOverlayAlpha"
+                                )
+                                val scale by animateFloatAsState(
+                                    targetValue = if (isPressed) 0.99f else 1f,
+                                    animationSpec = tween(60),
+                                    label = "pressScale"
+                                )
+                                val scope = rememberCoroutineScope()
+
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .graphicsLayer { scaleX = scale; scaleY = scale }
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .drawWithContent {
+                                            drawContent()
+                                            if (overlayAlpha > 0f) {
+                                                drawRect(
+                                                    color = scheme.onPrimaryContainer,
+                                                    alpha = overlayAlpha
                                                 )
                                             }
                                         }
-                                    )
-                                    .padding(vertical = 10.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                        .clickable(
+                                            interactionSource = interaction,
+                                            indication = ripple(
+                                                bounded = true,
+                                                radius = 240.dp,
+                                                color = scheme.onPrimaryContainer
+                                            ),
+                                            onClick = {
+                                                scope.launch {
+                                                    delay(100)
+                                                    navigator.root().push(
+                                                        RecordDetailScreen(
+                                                            record.receipt,
+                                                            record.id,
+                                                            true
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        )
+                                        .padding(vertical = 6.dp)
                                 ) {
-                                    Text(
-                                        text = record.customer.name,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
-                                    )
-                                    Text(
-                                        text = "${record.meter} m³",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1
-                                    )
-                                }
-                                Spacer(Modifier.height(4.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = record.customer.address,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = scheme.onSurfaceVariant,
-                                        maxLines = 1
-                                    )
-
-                                    val (statusLabel, bgColor, fgColor) = when (record.status) {
-                                        "sudah_bayar" -> Triple(
-                                            "Sudah Bayar",
-                                            scheme.tertiaryContainer,
-                                            scheme.onTertiaryContainer
-                                        )
-
-                                        "belum_bayar" -> Triple(
-                                            "Belum Bayar",
-                                            scheme.error.copy(alpha = 0.15f),
-                                            scheme.error
-                                        )
-
-                                        else -> Triple(
-                                            "-",
-                                            scheme.surfaceVariant,
-                                            scheme.onSurfaceVariant
-                                        )
-                                    }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(bgColor)
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = statusLabel,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = fgColor,
+                                            text = record.customer.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            maxLines = 1
+                                        )
+                                        Text(
+                                            text = "${record.meter} m³",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Medium,
                                             maxLines = 1
                                         )
                                     }
+                                    Spacer(Modifier.height(2.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = record.customer.address,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = scheme.onSurfaceVariant,
+                                            maxLines = 1
+                                        )
+
+                                        val (statusLabel, bgColor, fgColor) = when (record.status) {
+                                            "sudah_bayar" -> Triple(
+                                                "Sudah Bayar",
+                                                scheme.tertiaryContainer,
+                                                scheme.onTertiaryContainer
+                                            )
+
+                                            "belum_bayar" -> Triple(
+                                                "Belum Bayar",
+                                                scheme.error.copy(alpha = 0.15f),
+                                                scheme.error
+                                            )
+
+                                            else -> Triple(
+                                                "-",
+                                                scheme.surfaceVariant,
+                                                scheme.onSurfaceVariant
+                                            )
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(bgColor)
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = statusLabel,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = fgColor,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
                                 }
+                                HorizontalDivider(thickness = 0.6.dp, color = scheme.outlineVariant)
                             }
-                            HorizontalDivider()
                         }
                     }
                 }

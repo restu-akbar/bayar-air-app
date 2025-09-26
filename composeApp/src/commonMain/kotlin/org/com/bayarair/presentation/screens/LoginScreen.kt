@@ -63,7 +63,7 @@ data class LoginScreen(
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val vm: AuthViewModel = koinScreenModel()
+        val vm: AuthViewModel = koinScreenModel<AuthViewModel>()
 
         val login by vm.login.collectAsState()
         val password by vm.password.collectAsState()
@@ -84,6 +84,7 @@ data class LoginScreen(
                 is AuthState.Success -> {
                     navigator.replaceAll(TabContainer(s.message))
                 }
+
                 is AuthState.ShowSnackbar -> snackbarHost.showSnackbar(s.message)
                 else -> Unit
             }

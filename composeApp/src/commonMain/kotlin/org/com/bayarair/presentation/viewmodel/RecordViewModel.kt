@@ -99,12 +99,9 @@ class RecordViewModel(
             it.copy(selectedCustomerId = "", searchText = "", alamat = "", hp = "", meterLalu = 0)
         }
 
-    // ------- Meteran -------
-    fun setMeteranText(raw: String) = mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
+    fun setMeteranText(raw: String) =
+        mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
 
-    fun setTariff(newTariff: Long) = mutableState.update { it.copy(air = newTariff) }
-
-    // ------- Biaya lain-lain -------
     fun addOtherFee() {
         val st = state.value
         val available = st.availableTypes
@@ -148,7 +145,8 @@ class RecordViewModel(
         }
     }
 
-    fun removeFee(id: Long) = mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
+    fun removeFee(id: Long) =
+        mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
 
     fun saveRecord(bitmap: Bitmap?) {
         screenModelScope.launch {
@@ -208,7 +206,12 @@ class RecordViewModel(
                     ).onSuccess { env ->
                         _events.emit(RecordEvent.ShowSnackbar(env.message))
                         resetForm()
-                        _events.emit(RecordEvent.Saved(env.data!!.struk.url, env.data!!.pencatatan.id))
+                        _events.emit(
+                            RecordEvent.Saved(
+                                env.data!!.struk.url,
+                                env.data!!.pencatatan.id
+                            )
+                        )
                     }.onFailure { e ->
                         _events.emit(RecordEvent.ShowSnackbar(e.message ?: "Gagal menyimpan"))
                         _events.emit(RecordEvent.Idle)
@@ -246,7 +249,6 @@ data class OtherFee(
 )
 
 data class RecordState(
-
     val isLoading: Boolean = false,
     val air: Long = 0L,
     val admin: Long = 0L,

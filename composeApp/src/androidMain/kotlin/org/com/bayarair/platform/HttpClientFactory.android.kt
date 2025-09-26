@@ -13,10 +13,13 @@ actual fun createHttpClient(): HttpClient {
 
     return installCommonPlugins(
         client = HttpClient(OkHttp),
-        tokenProvider = { tokenHandler.getToken() },
+        fastTokenProvider = { tokenHandler.peekToken() },
+        sessionVersionProvider = { tokenHandler.sessionVersion() },
         onUnauthorized = {
             tokenHandler.clear()
-            appEvents.emit(AppEvent.Logout("Anda telah login di perangkat lain. Silakan login ulang"))
+            appEvents.emit(
+                AppEvent.Logout("Anda telah login di perangkat lain. Silakan login ulang"),
+            )
         },
     )
 }

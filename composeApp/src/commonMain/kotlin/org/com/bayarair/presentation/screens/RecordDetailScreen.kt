@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,7 +54,7 @@ data class RecordDetailScreen(
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
-        val vm: RecordDetailViewModel = koinScreenModel()
+        val vm: RecordDetailViewModel = koinScreenModel<RecordDetailViewModel>()
         val printer = LocalReceiptPrinter.current
         val navigator = LocalNavigator.currentOrThrow.root()
         val snackbarHostState = remember { SnackbarHostState() }
@@ -94,6 +95,7 @@ data class RecordDetailScreen(
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBackIos,
                                 contentDescription = "Back",
+                                Modifier.size(18.dp)
                             )
                         }
                     },
@@ -111,7 +113,7 @@ data class RecordDetailScreen(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 40.dp),
+                            .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 50.dp),
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     DualActionButton(

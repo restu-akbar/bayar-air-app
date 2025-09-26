@@ -14,13 +14,10 @@ import io.ktor.http.contentType
 import org.com.bayarair.data.dto.BarChart
 import org.com.bayarair.data.dto.BaseResponse
 import org.com.bayarair.data.dto.HargaData
-import org.com.bayarair.data.dto.PelangganDto
 import org.com.bayarair.data.dto.PieChart
 import org.com.bayarair.data.dto.SaveRecordResponse
 import org.com.bayarair.data.dto.unwrapFlexible
-import org.com.bayarair.data.model.Customer
 import org.com.bayarair.data.model.MeterRecord
-import org.com.bayarair.data.model.toDomain
 import org.com.bayarair.data.remote.BASE_URL
 
 class RecordRepository(
@@ -41,14 +38,6 @@ class RecordRepository(
             res.unwrapFlexible<HargaData>().data!!
         }
 
-    suspend fun getPelanggan(): Result<List<PelangganDto>> =
-        runCatching {
-            val res = client.get("$BASE_URL/pelanggan")
-            res.unwrapFlexible<List<PelangganDto>>().data!!
-        }
-
-    suspend fun getCustomers(): Result<List<Customer>> =
-        getPelanggan().mapCatching { list -> list.map { it.toDomain() } }
 
     suspend fun saveRecord(
         customerId: String,

@@ -14,18 +14,37 @@ class AndroidTokenStore(
 ) : TokenHandler {
     private val prefs = context.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
 
+    @Volatile private var memToken: String? = null
+
+    @Volatile private var version: Int = 0
+
+    init {
+        memToken = prefs.getString(KEY_TOKEN, null)
+        version = if (memToken == null) 0 else 1
+    }
+
+    override fun peekToken(): String? = memToken
+
+    override fun sessionVersion(): Int = version
+
     override suspend fun getToken(): String? =
-        withContext(Dispatchers.IO) {
-            prefs.getString(KEY_TOKEN, null)
+        memToken ?: withContext(Dispatchers.IO) {
+            prefs.getString(KEY_TOKEN, null)?.also { memToken = it }
         }
 
-    override suspend fun setToken(token: String) =
+    override suspend fun setToken(token: String) {
+        memToken = token
+        version += 1
         withContext(Dispatchers.IO) {
             prefs.edit().putString(KEY_TOKEN, token).apply()
         }
+    }
 
-    override suspend fun clear() =
+    override suspend fun clear() {
+        memToken = null
+        version += 1
         withContext(Dispatchers.IO) {
             prefs.edit().remove(KEY_TOKEN).apply()
         }
+    }
 }

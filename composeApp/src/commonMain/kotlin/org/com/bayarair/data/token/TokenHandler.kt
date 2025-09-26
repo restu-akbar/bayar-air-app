@@ -6,4 +6,8 @@ interface TokenHandler {
     suspend fun setToken(token: String)
 
     suspend fun clear()
+
+    fun peekToken(): String?
+
+    fun sessionVersion(): Int
 }

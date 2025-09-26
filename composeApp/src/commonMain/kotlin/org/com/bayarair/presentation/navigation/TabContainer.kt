@@ -20,11 +20,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.House
+import androidx.compose.material.icons.filled.Person2
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.House
+import androidx.compose.material.icons.outlined.Person2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -134,7 +134,7 @@ data class TabContainer(
                                                         },
                                                         icon = {
                                                             Icon(
-                                                                imageVector = if (selected) Icons.Filled.Home else Icons.Outlined.Home,
+                                                                imageVector = if (selected) Icons.Filled.House else Icons.Outlined.House,
                                                                 contentDescription = HomeTab.options.title,
                                                                 tint =
                                                                     if (selected) {
@@ -170,7 +170,7 @@ data class TabContainer(
                                                         },
                                                         icon = {
                                                             Icon(
-                                                                imageVector = if (selected) Icons.Filled.Person else Icons.Outlined.Person,
+                                                                imageVector = if (selected) Icons.Filled.Person2 else Icons.Outlined.Person2,
                                                                 contentDescription = ProfileTab.options.title,
                                                                 tint =
                                                                     if (selected) {
@@ -289,4 +289,5 @@ class BottomBarScrollBehavior(
 }
 
 @Composable
-fun rememberBottomBarScrollBehavior(threshold: Float = 8f): BottomBarScrollBehavior = remember { BottomBarScrollBehavior(threshold) }
+fun rememberBottomBarScrollBehavior(threshold: Float = 8f): BottomBarScrollBehavior =
+    remember { BottomBarScrollBehavior(threshold) }

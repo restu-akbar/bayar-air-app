@@ -1,6 +1,5 @@
 package org.com.bayarair.presentation.viewmodel
 
-import android.util.Log
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.flow.update
@@ -9,6 +8,7 @@ import org.com.bayarair.core.AppEvent
 import org.com.bayarair.core.AppEvents
 import org.com.bayarair.data.dto.BarChart
 import org.com.bayarair.data.dto.PieChart
+import org.com.bayarair.data.dto.isUnauthorized
 import org.com.bayarair.data.model.MeterRecord
 import org.com.bayarair.data.repository.CustomerRepository
 import org.com.bayarair.data.repository.RecordRepository
@@ -43,7 +43,9 @@ class HomeViewModel(
                 .onSuccess { data ->
                     mutableState.update { it.copy(totalCust = data) }
                 }.onFailure { e ->
-                    appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
+                    if (!e.isUnauthorized()) {
+                        appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
+                    }
                 }
             mutableState.update { it.copy(loading = false) }
         }
@@ -61,7 +63,9 @@ class HomeViewModel(
                 .onSuccess { data ->
                     mutableState.update { it.copy(pieChart = data) }
                 }.onFailure { e ->
-                    appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
+                    if (!e.isUnauthorized()) {
+                        appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
+                    }
                 }
             mutableState.update { it.copy(loading = false) }
         }
@@ -71,7 +75,6 @@ class HomeViewModel(
         force: Boolean = false,
         year: Int,
     ) {
-        Log.d("testes", "$year")
         if (!force && state.value.pieChart != null) return
         screenModelScope.launch {
             mutableState.update { it.copy(loading = true) }
@@ -79,11 +82,12 @@ class HomeViewModel(
                 .getYearlyStats(year)
                 .onSuccess { data ->
                     mutableState.update {
-                        Log.d("testes", "$it")
                         it.copy(barChart = data)
                     }
                 }.onFailure { e ->
-                    appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
+                    if (!e.isUnauthorized()) {
+                        appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
+                    }
                 }
             mutableState.update { it.copy(loading = false) }
         }
@@ -98,7 +102,9 @@ class HomeViewModel(
                 .onSuccess { data ->
                     mutableState.update { it.copy(history = data) }
                 }.onFailure { e ->
-                    appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
+                    if (!e.isUnauthorized()) {
+                        appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
+                    }
                 }
             mutableState.update { it.copy(loading = false) }
         }
