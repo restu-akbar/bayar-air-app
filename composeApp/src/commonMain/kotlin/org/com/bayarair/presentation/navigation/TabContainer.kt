@@ -62,6 +62,7 @@ val LocalPreviousTabKey = staticCompositionLocalOf { mutableStateOf(HomeTab.key)
 
 data class TabContainer(
     val startupMessage: String? = null,
+    val startAtHome: Boolean = false,
 ) : Screen {
     @Composable
     override fun Content() {
@@ -74,6 +75,11 @@ data class TabContainer(
                 val k = tabNavigator.current.key
                 if (k != RecordTab.key) prevTabKey.value = k
             }
+
+            LaunchedEffect(startAtHome) {
+                if (startAtHome) tabNavigator.current = HomeTab
+            }
+
             val isRecordTab = tabNavigator.current.key == RecordTab.key
 
             LaunchedEffect(startupMessage) {

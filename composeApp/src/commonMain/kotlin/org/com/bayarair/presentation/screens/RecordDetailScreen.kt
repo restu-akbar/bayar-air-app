@@ -74,7 +74,7 @@ data class RecordDetailScreen(
                     }
 
                     RecordDetailEvent.HideLoading -> showLoading = false
-                    RecordDetailEvent.NavigateNext -> navigator.replaceAll(TabContainer())
+                    RecordDetailEvent.NavigateNext -> navigator.replaceAll(TabContainer(startAtHome = true))
                 }
             }
         }
@@ -89,7 +89,7 @@ data class RecordDetailScreen(
                             if (isDetail) {
                                 navigator.pop()
                             } else {
-                                navigator.replaceAll(TabContainer())
+                                navigator.replaceAll(TabContainer(startAtHome = true))
                             }
                         }) {
                             Icon(

@@ -59,12 +59,12 @@ object ProfileScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
-        val vm: ProfileViewModel = koinScreenModel<ProfileViewModel>()
+        val rootNav = LocalNavigator.currentOrThrow.root()
+        val vm: ProfileViewModel = koinScreenModel()
         val authVm: AuthViewModel = koinScreenModel<AuthViewModel>()
         val state by vm.state.collectAsState()
         var show by remember { mutableStateOf(false) }
         var dialogType by remember { mutableStateOf<String?>(null) }
-        val navigator = LocalNavigator.currentOrThrow
         val uriHandler = LocalUriHandler.current
 
         LaunchedEffect(Unit) {
@@ -148,7 +148,7 @@ object ProfileScreen : Screen {
                         ProfileMenuCard(
                             icon = iconMap["edit"] ?: Icons.Default.BorderColor,
                             text = "Edit Profil",
-                            onClick = { navigator.root().push(EditProfileScreen(state.user)) }
+                            onClick = { rootNav.push(EditProfileScreen) }
                         )
                         ProfileMenuCard(
                             icon = iconMap["password"] ?: Icons.Default.LockReset,

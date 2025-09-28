@@ -14,10 +14,9 @@ import io.ktor.http.contentType
 import org.com.bayarair.data.dto.BarChart
 import org.com.bayarair.data.dto.BaseResponse
 import org.com.bayarair.data.dto.HargaData
+import org.com.bayarair.data.dto.MeterRecord
 import org.com.bayarair.data.dto.PieChart
-import org.com.bayarair.data.dto.SaveRecordResponse
 import org.com.bayarair.data.dto.unwrapFlexible
-import org.com.bayarair.data.model.MeterRecord
 import org.com.bayarair.data.remote.BASE_URL
 
 class RecordRepository(
@@ -38,14 +37,13 @@ class RecordRepository(
             res.unwrapFlexible<HargaData>().data!!
         }
 
-
     suspend fun saveRecord(
         customerId: String,
         meter: Int,
-        totalAmount: Long,
+        meterLalu: Int,
         evidence: ByteArray,
         otherFees: Map<String, Long?>,
-    ): Result<BaseResponse<SaveRecordResponse>> =
+    ): Result<BaseResponse<MeterRecord>> =
         runCatching {
             client
                 .submitFormWithBinaryData(
@@ -54,7 +52,7 @@ class RecordRepository(
                         formData {
                             append("customer_id", customerId)
                             append("meter", meter.toString())
-                            append("total_amount", totalAmount.toString())
+                            append("meter_lalu", meterLalu.toString())
 
                             otherFees["Denda"]?.let { append("fine", it.toString()) }
                             otherFees["Materai"]?.let { append("duty_stamp", it.toString()) }
@@ -72,16 +70,16 @@ class RecordRepository(
                                 },
                             )
                         },
-                ).unwrapFlexible<SaveRecordResponse>()
+                ).unwrapFlexible<MeterRecord>()
         }
 
-    suspend fun updateRecord(recordId: String): Result<BaseResponse<SaveRecordResponse>> =
+    suspend fun updateRecord(recordId: String): Result<BaseResponse<MeterRecord>> =
         runCatching {
             val res =
                 client.patch("$BASE_URL/pencatatan/$recordId") {
                     setBody(mapOf("status" to "sudah_bayar"))
                 }
-            res.unwrapFlexible<BaseResponse<SaveRecordResponse>>().data!!
+            res.unwrapFlexible<BaseResponse<MeterRecord>>().data!!
         }
 
     suspend fun getMonthlyStats(month: Int): Result<PieChart> =

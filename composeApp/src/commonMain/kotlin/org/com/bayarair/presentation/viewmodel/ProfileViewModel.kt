@@ -15,23 +15,6 @@ class ProfileViewModel(
     private val repository: ProfileRepository,
     private val appEvents: AppEvents,
 ) : StateScreenModel<ProfileState>(ProfileState()) {
-    fun prefill(user: User) {
-        mutableState.update {
-            it.copy(
-                user = user,
-                loading = false,
-                profileForm =
-                    ProfileForm(
-                        name = user.name,
-                        username = user.username,
-                        phone_number = user.phone_number,
-                        email = user.email,
-                    ),
-            )
-        }
-        revalidate()
-    }
-
     fun getUser(force: Boolean = false) {
         if (!force && state.value.user != null) return
         screenModelScope.launch {

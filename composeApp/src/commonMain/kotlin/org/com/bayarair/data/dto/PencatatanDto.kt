@@ -21,18 +21,10 @@ data class HargaData(
 )
 
 @Serializable
-data class SaveRecordResponse(
-    val pencatatan: Pencatatan,
-    val struk: StrukDto,
-)
-
-@Serializable
-data class Pencatatan(
+data class MeterRecord(
     val id: String,
-)
-
-@Serializable
-data class StrukDto(
-    val url: String,
-    val filename: String,
+    val meter: Int,
+    val receipt: String,
+    val status: String,
+    val customer: PelangganDto
 )

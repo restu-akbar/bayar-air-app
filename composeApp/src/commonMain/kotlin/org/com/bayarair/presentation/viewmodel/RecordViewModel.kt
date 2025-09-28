@@ -18,6 +18,7 @@ import java.io.ByteArrayOutputStream
 class RecordViewModel(
     private val repo: RecordRepository,
     private val custRepo: CustomerRepository,
+    private val historyShared: RecordHistoryShared,
 ) : StateScreenModel<RecordState>(RecordState()) {
     private val _events = MutableSharedFlow<RecordEvent>()
     val events: SharedFlow<RecordEvent> = _events.asSharedFlow()
@@ -87,7 +88,7 @@ class RecordViewModel(
             it.copy(
                 selectedCustomerId = customerId,
                 searchText = c?.name.orElse(""),
-                alamat = c?.alamat.orElse(""),
+                alamat = c?.address.orElse(""),
                 hp = c?.hp.orElse(""),
                 meterLalu = c?.meterLalu ?: 0,
             )
@@ -200,7 +201,7 @@ class RecordViewModel(
                     .saveRecord(
                         customerId = st.selectedCustomerId,
                         meter = current.toInt(),
-                        totalAmount = st.totalBayar,
+                        meterLalu = st.meterLalu,
                         evidence = photoBytes,
                         otherFees = fees,
                     ).onSuccess { env ->
@@ -208,10 +209,11 @@ class RecordViewModel(
                         resetForm()
                         _events.emit(
                             RecordEvent.Saved(
-                                env.data!!.struk.url,
-                                env.data!!.pencatatan.id
-                            )
+                                env.data!!.receipt,
+                                env.data!!.id,
+                            ),
                         )
+                        historyShared.prepend(env.data)
                     }.onFailure { e ->
                         _events.emit(RecordEvent.ShowSnackbar(e.message ?: "Gagal menyimpan"))
                         _events.emit(RecordEvent.Idle)

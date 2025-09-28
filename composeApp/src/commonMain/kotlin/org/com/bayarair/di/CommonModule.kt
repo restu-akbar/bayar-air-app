@@ -12,6 +12,7 @@ import org.com.bayarair.presentation.viewmodel.AuthViewModel
 import org.com.bayarair.presentation.viewmodel.HomeViewModel
 import org.com.bayarair.presentation.viewmodel.ProfileViewModel
 import org.com.bayarair.presentation.viewmodel.RecordDetailViewModel
+import org.com.bayarair.presentation.viewmodel.RecordHistoryShared
 import org.com.bayarair.presentation.viewmodel.RecordViewModel
 import org.com.bayarair.presentation.viewmodel.SplashViewModel
 import org.koin.dsl.module
@@ -34,10 +35,22 @@ val commonModule =
             )
         }
         factory<SplashViewModel> { SplashViewModel(get<TokenHandler>()) }
-        factory<HomeViewModel> { HomeViewModel(get<RecordRepository>(), get<CustomerRepository>(), get<AppEvents>()) }
-        factory<RecordViewModel> { RecordViewModel(get<RecordRepository>(), get<CustomerRepository>()) }
-        factory<RecordDetailViewModel> { RecordDetailViewModel(get<RecordRepository>()) }
-        factory<ProfileViewModel> {
-            ProfileViewModel(get<ProfileRepository>(), get<AppEvents>())
+        single<HomeViewModel> {
+            HomeViewModel(
+                get<RecordRepository>(),
+                get<CustomerRepository>(),
+                get<AppEvents>(),
+                get<RecordHistoryShared>(),
+            )
         }
+        factory<RecordViewModel> {
+            RecordViewModel(
+                get<RecordRepository>(),
+                get<CustomerRepository>(),
+                get<RecordHistoryShared>()
+            )
+        }
+        factory<RecordDetailViewModel> { RecordDetailViewModel(get<RecordRepository>()) }
+        single<ProfileViewModel> { ProfileViewModel(get<ProfileRepository>(), get<AppEvents>()) }
+        single { RecordHistoryShared() }
     }

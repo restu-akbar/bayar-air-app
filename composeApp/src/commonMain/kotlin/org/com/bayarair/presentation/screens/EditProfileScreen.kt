@@ -44,22 +44,19 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import org.com.bayarair.data.model.User
 import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.viewmodel.ProfileViewModel
 
-data class EditProfileScreen(
-    val user: User? = null,
-) : Screen {
+object EditProfileScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Content() {
-        val vm = koinScreenModel<ProfileViewModel>()
+        val rootNav = LocalNavigator.currentOrThrow.root()
+        val vm: ProfileViewModel = koinScreenModel()
         val state by vm.state.collectAsState()
-        val nav = LocalNavigator.currentOrThrow.root()
 
-        LaunchedEffect(user?.id) {
-            if (user != null) vm.prefill(user) else vm.getUser()
+        LaunchedEffect(Unit) {
+            vm.getUser()
         }
 
         val f = state.profileForm
@@ -94,7 +91,7 @@ data class EditProfileScreen(
                 TopAppBar(
                     title = { Text("") },
                     navigationIcon = {
-                        IconButton(onClick = { nav.pop() }) {
+                        IconButton(onClick = { rootNav.pop() }) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Kembali",
@@ -289,7 +286,6 @@ data class EditProfileScreen(
     }
 }
 
-// Helper inisial nama (maks 2 huruf)
 private fun String.initials(): String {
     val parts = trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
     return when {

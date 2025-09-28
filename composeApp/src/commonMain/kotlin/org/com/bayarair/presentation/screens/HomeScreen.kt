@@ -88,7 +88,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import org.com.bayarair.data.model.MeterRecord
+import org.com.bayarair.data.dto.MeterRecord
 import org.com.bayarair.presentation.component.MarqueeText
 import org.com.bayarair.presentation.component.loadingOverlay
 import org.com.bayarair.presentation.navigation.root
@@ -96,7 +96,9 @@ import org.com.bayarair.presentation.theme.inactiveButtonText
 import org.com.bayarair.presentation.viewmodel.HomeState
 import org.com.bayarair.presentation.viewmodel.HomeViewModel
 import org.com.bayarair.presentation.viewmodel.ProfileViewModel
+import org.com.bayarair.presentation.viewmodel.RecordHistoryShared
 import org.com.bayarair.utils.DateUtils
+import org.koin.compose.koinInject
 import java.text.DecimalFormat
 import kotlin.math.atan2
 import kotlin.math.ceil
@@ -119,13 +121,14 @@ object HomeScreen : Screen {
         val state by vm.state.collectAsState()
         val profileState by vmProfile.state.collectAsState()
 
-        var switcher by remember { mutableStateOf(true) }
         var graph by rememberSaveable { mutableStateOf(true) }
 
         var refreshOwner by rememberSaveable { mutableStateOf(RefreshOwner.NONE) }
 
         val isTopRefreshing = (refreshOwner == RefreshOwner.TOP)
+        val historyShared: RecordHistoryShared = koinInject()
 
+        val history by historyShared.history.collectAsState()
         LaunchedEffect(profileState.loading, state.loading) {
             if (!profileState.loading && !state.loading) {
                 refreshOwner = RefreshOwner.NONE
@@ -136,14 +139,14 @@ object HomeScreen : Screen {
 
         LaunchedEffect(Unit) {
             if (state.pieChart == null || state.barChart == null) {
-                vm.init(month = currentMonth(), force = true, isPieChart = switcher)
+                vm.init(month = currentMonth(), force = true, isPieChart = state.switcher)
             }
             if (profileState.user == null) {
                 vmProfile.getUser()
             }
         }
-        LaunchedEffect(switcher) {
-            if (!switcher) vm.loadHistory()
+        LaunchedEffect(state.switcher) {
+            if (!state.switcher) vm.loadHistory()
         }
 
         Scaffold { innerPadding ->
@@ -161,7 +164,7 @@ object HomeScreen : Screen {
                             onRefresh = {
                                 refreshOwner = RefreshOwner.TOP
                                 vmProfile.getUser(true)
-                                if (switcher) {
+                                if (state.switcher) {
                                     if (graph) {
                                         vm.getPieChartData(force = true, month = currentMonth())
                                     } else {
@@ -203,14 +206,14 @@ object HomeScreen : Screen {
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Button(
-                                        onClick = { switcher = true },
+                                        onClick = { vm.switchStats(true) },
                                         shape = RoundedCornerShape(6.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (switcher)
+                                            containerColor = if (state.switcher)
                                                 MaterialTheme.colorScheme.primaryContainer
                                             else
                                                 MaterialTheme.colorScheme.secondary,
-                                            contentColor = if (switcher) Color.Black
+                                            contentColor = if (state.switcher) Color.Black
                                             else MaterialTheme.colorScheme.inactiveButtonText,
                                         )
                                     ) {
@@ -220,14 +223,14 @@ object HomeScreen : Screen {
                                     }
                                     Spacer(Modifier.size(12.dp))
                                     Button(
-                                        onClick = { switcher = false },
+                                        onClick = { vm.switchStats(false) },
                                         shape = RoundedCornerShape(6.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (!switcher)
+                                            containerColor = if (!state.switcher)
                                                 MaterialTheme.colorScheme.primaryContainer
                                             else
                                                 MaterialTheme.colorScheme.secondary,
-                                            contentColor = if (!switcher) Color.Black
+                                            contentColor = if (!state.switcher) Color.Black
                                             else MaterialTheme.colorScheme.inactiveButtonText,
                                         )
                                     ) {
@@ -238,7 +241,7 @@ object HomeScreen : Screen {
                                 }
                             }
                         }
-                        if (switcher) {
+                        if (state.switcher) {
                             ChartSwitcher(
                                 vm = vm,
                                 graph = graph,
@@ -248,7 +251,7 @@ object HomeScreen : Screen {
                             )
                         } else {
                             HistorySection(
-                                records = state.history as List<MeterRecord>,
+                                records = history,
                                 isRefreshing = (refreshOwner == RefreshOwner.HISTORY) && state.loading,
                                 onRefresh = {
                                     refreshOwner = RefreshOwner.HISTORY

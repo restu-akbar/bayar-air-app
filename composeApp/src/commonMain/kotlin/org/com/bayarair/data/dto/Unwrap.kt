@@ -4,7 +4,6 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
 import kotlinx.serialization.SerializationException
-import org.com.bayarair.data.model.MeterRecord
 
 suspend fun HttpResponse.extractErrorMessage(preRead: String? = null): String {
     val txt = preRead ?: bodyAsText()
