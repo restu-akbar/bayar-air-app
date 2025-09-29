@@ -8,24 +8,41 @@ import org.com.bayarair.core.AppEvent
 import org.com.bayarair.core.AppEvents
 import org.com.bayarair.data.dto.ProfileForm
 import org.com.bayarair.data.dto.isUnauthorized
-import org.com.bayarair.data.model.User
 import org.com.bayarair.data.repository.ProfileRepository
 
 class ProfileViewModel(
     private val repository: ProfileRepository,
     private val appEvents: AppEvents,
+    private val userShared: UserShared,
 ) : StateScreenModel<ProfileState>(ProfileState()) {
     fun getUser(force: Boolean = false) {
-        if (!force && state.value.user != null) return
+        val cached = userShared.user.value
+        if (!force && cached != null) {
+            mutableState.update {
+                it.copy(
+                    loading = false,
+                    profileForm =
+                        ProfileForm(
+                            name = cached.name,
+                            username = cached.username,
+                            phone_number = cached.phone_number,
+                            email = cached.email,
+                        ),
+                )
+            }
+            revalidate()
+            return
+        }
+
         screenModelScope.launch {
             mutableState.update { it.copy(loading = true) }
             try {
                 val result = repository.getUser()
                 result
                     .onSuccess { user ->
+                        userShared.setUser(user)
                         mutableState.update {
                             it.copy(
-                                user = user,
                                 profileForm =
                                     ProfileForm(
                                         name = user.name,
@@ -119,13 +136,11 @@ class ProfileViewModel(
                 val result =
                     repository.updateProfile(
                         form,
-                        s.user!!.id,
+                        userShared.user.value!!.id,
                     )
                 result
                     .onSuccess { updatedUser ->
-                        mutableState.update {
-                            it.copy(user = updatedUser)
-                        }
+                        userShared.setUser(updatedUser)
                         appEvents.emit(AppEvent.ShowSnackbar("Profil berhasil diperbarui"))
                     }.onFailure { e ->
                         appEvents.emit(
@@ -141,7 +156,6 @@ class ProfileViewModel(
     }
 }
 
-
 data class ProfileFormErrors(
     val name: String? = null,
     val username: String? = null,
@@ -150,8 +164,7 @@ data class ProfileFormErrors(
 )
 
 data class ProfileState(
-    val user: User? = null,
-    val loading: Boolean = true,
+    val loading: Boolean = false,
     val saving: Boolean = false,
     val profileForm: ProfileForm = ProfileForm(),
     val errors: ProfileFormErrors = ProfileFormErrors(),

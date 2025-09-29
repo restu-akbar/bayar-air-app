@@ -17,6 +17,7 @@ class HomeViewModel(
     private val custRepo: CustomerRepository,
     private val appEvents: AppEvents,
     private val historyShared: RecordHistoryShared,
+    private val statsShared: StatsShared,
 ) : StateScreenModel<HomeState>(HomeState()) {
     fun init(
         force: Boolean,
@@ -55,13 +56,13 @@ class HomeViewModel(
         force: Boolean = false,
         month: Int,
     ) {
-        if (!force && state.value.pieChart != null) return
+        if (!force && statsShared.pieChart.value != null) return
         screenModelScope.launch {
             mutableState.update { it.copy(loading = true) }
             recordRepo
                 .getMonthlyStats(month)
                 .onSuccess { data ->
-                    mutableState.update { it.copy(pieChart = data) }
+                    statsShared.setPieChart(data)
                 }.onFailure { e ->
                     if (!e.isUnauthorized()) {
                         appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
@@ -75,15 +76,13 @@ class HomeViewModel(
         force: Boolean = false,
         year: Int,
     ) {
-        if (!force && state.value.pieChart != null) return
+        if (!force && statsShared.barChart.value != null) return
         screenModelScope.launch {
             mutableState.update { it.copy(loading = true) }
             recordRepo
                 .getYearlyStats(year)
                 .onSuccess { data ->
-                    mutableState.update {
-                        it.copy(barChart = data)
-                    }
+                    statsShared.setBarChart(data)
                 }.onFailure { e ->
                     if (!e.isUnauthorized()) {
                         appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Terjadi kesalahan"))
@@ -118,8 +117,6 @@ class HomeViewModel(
 }
 
 data class HomeState(
-    val pieChart: PieChart? = null,
-    val barChart: BarChart? = null,
     val loading: Boolean = false,
     val totalCust: Int = 0,
     val switcher: Boolean = true,

@@ -7,8 +7,8 @@ import io.ktor.client.request.patch
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import org.com.bayarair.data.dto.ProfileForm
+import org.com.bayarair.data.dto.User
 import org.com.bayarair.data.dto.unwrapFlexible
-import org.com.bayarair.data.model.User
 import org.com.bayarair.data.remote.BASE_URL
 
 class ProfileRepository(

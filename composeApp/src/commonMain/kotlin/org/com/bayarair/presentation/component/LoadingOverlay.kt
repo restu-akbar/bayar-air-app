@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun loadingOverlay(loadMessage: String = "") {
+fun LoadingOverlay(loadMessage: String = "") {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
@@ -28,7 +28,7 @@ fun loadingOverlay(loadMessage: String = "") {
                     strokeWidth = 3.dp,
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("$loadMessage")
+                Text(loadMessage)
             }
         }
     }

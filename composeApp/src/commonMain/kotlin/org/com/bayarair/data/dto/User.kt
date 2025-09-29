@@ -1,4 +1,4 @@
-package org.com.bayarair.data.model
+package org.com.bayarair.data.dto
 
 import kotlinx.serialization.Serializable
 import org.com.bayarair.data.dto.PelangganDto

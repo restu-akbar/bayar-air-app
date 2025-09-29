@@ -15,6 +15,8 @@ import org.com.bayarair.presentation.viewmodel.RecordDetailViewModel
 import org.com.bayarair.presentation.viewmodel.RecordHistoryShared
 import org.com.bayarair.presentation.viewmodel.RecordViewModel
 import org.com.bayarair.presentation.viewmodel.SplashViewModel
+import org.com.bayarair.presentation.viewmodel.StatsShared
+import org.com.bayarair.presentation.viewmodel.UserShared
 import org.koin.dsl.module
 
 val commonModule =
@@ -32,25 +34,38 @@ val commonModule =
                 get<TokenHandler>(),
                 get<AuthRepository>(),
                 get<AppEvents>(),
+                get<RecordHistoryShared>(),
+                get<UserShared>(),
             )
         }
         factory<SplashViewModel> { SplashViewModel(get<TokenHandler>()) }
-        single<HomeViewModel> {
+        factory<HomeViewModel> {
             HomeViewModel(
                 get<RecordRepository>(),
                 get<CustomerRepository>(),
                 get<AppEvents>(),
                 get<RecordHistoryShared>(),
+                get<StatsShared>(),
             )
         }
         factory<RecordViewModel> {
             RecordViewModel(
                 get<RecordRepository>(),
                 get<CustomerRepository>(),
-                get<RecordHistoryShared>()
+                get<RecordHistoryShared>(),
+                get<StatsShared>(),
             )
         }
         factory<RecordDetailViewModel> { RecordDetailViewModel(get<RecordRepository>()) }
-        single<ProfileViewModel> { ProfileViewModel(get<ProfileRepository>(), get<AppEvents>()) }
+        factory<ProfileViewModel> {
+            ProfileViewModel(
+                get<ProfileRepository>(),
+                get<AppEvents>(),
+                get<UserShared>(),
+            )
+        }
+
         single { RecordHistoryShared() }
+        single { UserShared() }
+        single { StatsShared() }
     }

@@ -87,16 +87,20 @@ import ir.ehsannarmani.compose_charts.models.PopupProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
+import org.com.bayarair.data.dto.BarChart
 import org.com.bayarair.data.dto.MeterRecord
+import org.com.bayarair.data.dto.PieChart
+import org.com.bayarair.presentation.component.LoadingOverlay
 import org.com.bayarair.presentation.component.MarqueeText
-import org.com.bayarair.presentation.component.loadingOverlay
 import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.theme.inactiveButtonText
-import org.com.bayarair.presentation.viewmodel.HomeState
 import org.com.bayarair.presentation.viewmodel.HomeViewModel
 import org.com.bayarair.presentation.viewmodel.ProfileViewModel
 import org.com.bayarair.presentation.viewmodel.RecordHistoryShared
+import org.com.bayarair.presentation.viewmodel.StatsShared
+import org.com.bayarair.presentation.viewmodel.UserShared
 import org.com.bayarair.utils.DateUtils
 import org.koin.compose.koinInject
 import java.text.DecimalFormat
@@ -126,9 +130,17 @@ object HomeScreen : Screen {
         var refreshOwner by rememberSaveable { mutableStateOf(RefreshOwner.NONE) }
 
         val isTopRefreshing = (refreshOwner == RefreshOwner.TOP)
-        val historyShared: RecordHistoryShared = koinInject()
 
+        val historyShared: RecordHistoryShared = koinInject()
         val history by historyShared.history.collectAsState()
+
+        val userShared: UserShared = koinInject()
+        val user by userShared.user.collectAsState()
+
+        val statsShared: StatsShared = koinInject()
+        val pieChart by statsShared.pieChart.collectAsState()
+        val barChart by statsShared.barChart.collectAsState()
+
         LaunchedEffect(profileState.loading, state.loading) {
             if (!profileState.loading && !state.loading) {
                 refreshOwner = RefreshOwner.NONE
@@ -138,19 +150,17 @@ object HomeScreen : Screen {
         val globalPtr = rememberPullToRefreshState()
 
         LaunchedEffect(Unit) {
-            if (state.pieChart == null || state.barChart == null) {
+            if (pieChart == null || barChart == null) {
                 vm.init(month = currentMonth(), force = true, isPieChart = state.switcher)
             }
-            if (profileState.user == null) {
-                vmProfile.getUser()
-            }
+            vmProfile.getUser()
         }
         LaunchedEffect(state.switcher) {
             if (!state.switcher) vm.loadHistory()
         }
 
         Scaffold { innerPadding ->
-            if (state.pieChart !== null || profileState.user !== null) {
+            if (pieChart !== null || user !== null) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -196,7 +206,7 @@ object HomeScreen : Screen {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     MarqueeText(
-                                        text = "Selamat Datang, ${profileState.user?.name ?: "User"} !",
+                                        text = "Selamat Datang, ${user?.name ?: "User"} !",
                                         modifier = Modifier.weight(1f),
                                         speedDpPerSec = 50f
                                     )
@@ -247,22 +257,29 @@ object HomeScreen : Screen {
                                 graph = graph,
                                 onGraphChanged = { graph = it },
                                 isOwnerChart = (refreshOwner == RefreshOwner.CHART),
-                                onLocalRefreshStart = { refreshOwner = RefreshOwner.CHART }
+                                onLocalRefreshStart = { refreshOwner = RefreshOwner.CHART },
+                                pieChart = pieChart,
+                                barChart = barChart
                             )
                         } else {
-                            HistorySection(
-                                records = history,
-                                isRefreshing = (refreshOwner == RefreshOwner.HISTORY) && state.loading,
-                                onRefresh = {
-                                    refreshOwner = RefreshOwner.HISTORY
-                                    vm.loadHistory(force = true)
-                                })
+                            if (state.loading) {
+                                LoadingOverlay()
+                            } else {
+                                HistorySection(
+                                    records = history,
+                                    isRefreshing = (refreshOwner == RefreshOwner.HISTORY) && state.loading,
+                                    onRefresh = {
+                                        refreshOwner = RefreshOwner.HISTORY
+                                        vm.loadHistory(force = true)
+                                    })
+
+                            }
                         }
                     }
 
                 }
             } else {
-                loadingOverlay()
+                LoadingOverlay()
             }
         }
     }
@@ -272,6 +289,8 @@ object HomeScreen : Screen {
 @Composable
 fun ChartSwitcher(
     vm: HomeViewModel,
+    pieChart: PieChart?,
+    barChart: BarChart?,
     graph: Boolean,
     onGraphChanged: (Boolean) -> Unit,
     isOwnerChart: Boolean,
@@ -433,25 +452,36 @@ fun ChartSwitcher(
             }
         }
     }
-
-    Spacer(Modifier.height(16.dp))
-
+    Spacer(Modifier.size(2.dp))
     PullToRefreshBox(
         isRefreshing = isChartRefreshing,
         onRefresh = {
             onLocalRefreshStart()
-            if (graph) {
-                vm.getPieChartData(force = true, month = selectedMonth)
-            } else {
-                vm.getBarChartData(force = true, year = selectedYear)
-            }
+            if (graph) vm.getPieChartData(force = true, month = selectedMonth)
+            else vm.getBarChartData(force = true, year = selectedYear)
         },
         state = ptrState,
     ) {
-        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-            if (graph) pieChart(state) else barChart(state)
-        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                graph && pieChart != null -> {
+                    PieChartView(state.totalCust, pieChart)
+                }
 
+                !graph && barChart != null -> {
+                    BarChartView(state.totalCust, barChart)
+                }
+
+                else -> {
+                    LoadingOverlay()
+                }
+            }
+        }
     }
 }
 
@@ -521,18 +551,18 @@ private fun currentMonth(): Int {
     return try {
         Clock.System.now()
             .toLocalDateTime(TimeZone.currentSystemDefault())
-            .monthNumber
+            .month.number
     } catch (_: Throwable) {
         1
     }
 }
 
 @Composable
-fun pieChart(state: HomeState) {
-    val totalRecordByUser = state.pieChart?.total
+fun PieChartView(totalCust: Int, pieChart: PieChart) {
+    val totalRecordByUser = pieChart.total
     val values = listOf(
-        (state.totalCust ?: 0).toFloat(),
-        (totalRecordByUser ?: 0).toFloat()
+        totalCust.toFloat(),
+        totalRecordByUser.toFloat()
     )
     val labels = listOf("Total Pelanggan", "Total Pencatatan")
     val total = values.sum().coerceAtLeast(1f)
@@ -558,7 +588,7 @@ fun pieChart(state: HomeState) {
     var showTooltip by remember { mutableStateOf(false) }
 
     val formatter = remember { DecimalFormat("#.##") }
-    val valueChange: Float = (state.pieChart?.persentase?.toFloat()) ?: 0f
+    val valueChange: Float = (pieChart.persentase.toFloat())
 
     val (icon, color) = when {
         valueChange > 0f -> Pair(Icons.Default.ArrowUpward, scheme.tertiaryContainer)
@@ -569,8 +599,7 @@ fun pieChart(state: HomeState) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(410.dp)
-            .padding(vertical = 12.dp),
+            .height(400.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = scheme.primaryContainer),
         elevation = CardDefaults.cardElevation(4.dp)
@@ -701,7 +730,7 @@ fun pieChart(state: HomeState) {
             Spacer(Modifier.height(10.dp))
 
             Text(
-                text = DateUtils.months.firstOrNull { it.first == state.pieChart?.bulan }?.second
+                text = DateUtils.months.firstOrNull { it.first == pieChart.bulan }?.second
                     ?: "-",
                 style = MaterialTheme.typography.titleLarge,
                 color = scheme.onPrimaryContainer,
@@ -713,7 +742,7 @@ fun pieChart(state: HomeState) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${state.pieChart?.total ?: 0}",
+                    text = "${pieChart.total ?: 0}",
                     style = MaterialTheme.typography.headlineLarge,
                     color = scheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold,
@@ -754,7 +783,7 @@ fun pieChart(state: HomeState) {
 }
 
 @Composable
-fun barChart(state: HomeState) {
+fun BarChartView(totalCust: Int, barChart: BarChart) {
     val scheme = MaterialTheme.colorScheme
 
     fun normalizeMonthLabel(raw: String): String {
@@ -779,8 +808,8 @@ fun barChart(state: HomeState) {
     val monthOrder =
         listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Des")
 
-    val barsData: List<Bars> = remember(state.barChart) {
-        val src = state.barChart?.data.orEmpty()
+    val barsData: List<Bars> = remember(barChart) {
+        val src = barChart.data.orEmpty()
         val totalsByLabel = src
             .groupBy { normalizeMonthLabel(it.bulan) }
             .mapValues { (_, items) -> items.sumOf { it.total.toDouble() } }
@@ -808,16 +837,15 @@ fun barChart(state: HomeState) {
     val dataMax = remember(barsData) {
         barsData.maxOfOrNull { it.values.maxOfOrNull { d -> d.value } ?: 0.0 } ?: 0.0
     }
-    val yMax = ceil(maxOf(state.totalCust.toDouble(), dataMax)).toInt()
+    val yMax = ceil(maxOf(totalCust.toDouble(), dataMax)).toInt()
 
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
         Card(
             modifier = Modifier
-                .height(410.dp)
+                .height(400.dp)
                 .fillMaxWidth()
-                .padding(vertical = 12.dp)
                 .border(2.dp, Color.Transparent, RoundedCornerShape(12.dp)),
             elevation = CardDefaults.elevatedCardElevation(2.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -827,7 +855,7 @@ fun barChart(state: HomeState) {
                     .fillMaxSize()
                     .padding(vertical = 12.dp)
             ) {
-                if (state.barChart == null || state.barChart.data.isEmpty()) {
+                if (barChart.data.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
@@ -916,14 +944,12 @@ fun HistorySection(
     val navigator = LocalNavigator.currentOrThrow
     val ptrState = rememberPullToRefreshState()
 
-    // --- state pencarian & filter ---
     var query by rememberSaveable { mutableStateOf("") }
     var filterExpanded by remember { mutableStateOf(false) }
     var payFilter by rememberSaveable { mutableStateOf(PayFilter.ALL) }
 
     val scheme = MaterialTheme.colorScheme
 
-    // filter lokal: nama + status
     val filteredRecords = remember(records, query, payFilter) {
         val q = query.trim()
         records.asSequence()

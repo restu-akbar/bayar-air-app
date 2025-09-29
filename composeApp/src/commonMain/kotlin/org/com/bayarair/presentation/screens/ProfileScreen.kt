@@ -50,10 +50,12 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.com.bayarair.presentation.component.ConfirmDialog
-import org.com.bayarair.presentation.component.loadingOverlay
+import org.com.bayarair.presentation.component.LoadingOverlay
 import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.viewmodel.AuthViewModel
 import org.com.bayarair.presentation.viewmodel.ProfileViewModel
+import org.com.bayarair.presentation.viewmodel.UserShared
+import org.koin.compose.koinInject
 
 object ProfileScreen : Screen {
     @OptIn(ExperimentalMaterial3Api::class)
@@ -66,13 +68,16 @@ object ProfileScreen : Screen {
         var show by remember { mutableStateOf(false) }
         var dialogType by remember { mutableStateOf<String?>(null) }
         val uriHandler = LocalUriHandler.current
+        val userShared: UserShared = koinInject()
+        val user by userShared.user.collectAsState()
 
         LaunchedEffect(Unit) {
             vm.getUser()
         }
 
+
         Scaffold { _ ->
-            if (state.user != null) {
+            if (user != null) {
                 PullToRefreshBox(
                     isRefreshing = state.loading,
                     onRefresh = { vm.getUser(true) },
@@ -93,7 +98,7 @@ object ProfileScreen : Screen {
                                 .padding(20.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val initials = state.user?.name
+                            val initials = user?.name
                                 ?.split(" ")
                                 ?.filter { it.isNotBlank() }
                                 ?.take(2)
@@ -119,7 +124,7 @@ object ProfileScreen : Screen {
 
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    text = state.user?.name ?: "User",
+                                    text = user?.name ?: "User",
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
@@ -128,7 +133,7 @@ object ProfileScreen : Screen {
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = state.user?.email ?: "-",
+                                    text = user?.email ?: "-",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f),
                                     maxLines = 1,
@@ -211,7 +216,7 @@ object ProfileScreen : Screen {
                     }
                 }
             } else {
-                loadingOverlay()
+                LoadingOverlay()
             }
         }
     }

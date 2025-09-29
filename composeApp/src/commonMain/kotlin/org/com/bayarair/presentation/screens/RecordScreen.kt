@@ -54,7 +54,7 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import kotlinx.coroutines.launch
-import org.com.bayarair.presentation.component.loadingOverlay
+import org.com.bayarair.presentation.component.LoadingOverlay
 import org.com.bayarair.presentation.navigation.HomeTab
 import org.com.bayarair.presentation.navigation.LocalPreviousTabKey
 import org.com.bayarair.presentation.navigation.ProfileTab
@@ -228,7 +228,7 @@ object RecordScreen : Screen {
                             placeholder = { Text("Cari nama pelanggan…") },
                             shape = RoundedCornerShape(4.dp),
                             modifier = Modifier
-                                .menuAnchor()
+                                .menuAnchor(MenuAnchorType.PrimaryEditable)
                                 .fillMaxWidth(),
                             trailingIcon = {
                                 Row(
@@ -572,7 +572,7 @@ object RecordScreen : Screen {
                     Spacer(Modifier.height(24.dp))
                 }
                 if (showFullLoading) {
-                    loadingOverlay(loadMessage)
+                    LoadingOverlay(loadMessage)
                 } else {
                     PullRefreshIndicator(
                         refreshing = isRefreshing,
@@ -636,7 +636,7 @@ private fun BiayaItemRow(
                     label = { Text("Jenis") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
-                        .menuAnchor()
+                        .menuAnchor(MenuAnchorType.PrimaryEditable, true)
                         .fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = formBg,

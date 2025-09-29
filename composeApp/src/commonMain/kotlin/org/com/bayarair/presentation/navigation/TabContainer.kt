@@ -10,12 +10,20 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.tab.CurrentTab
@@ -61,7 +70,6 @@ import cafe.adriel.voyager.navigator.tab.TabNavigator
 val LocalPreviousTabKey = staticCompositionLocalOf { mutableStateOf(HomeTab.key) }
 
 data class TabContainer(
-    val startupMessage: String? = null,
     val startAtHome: Boolean = false,
 ) : Screen {
     @Composable
@@ -82,30 +90,33 @@ data class TabContainer(
 
             val isRecordTab = tabNavigator.current.key == RecordTab.key
 
-            LaunchedEffect(startupMessage) {
-                startupMessage
-                    ?.takeIf { it.isNotBlank() }
-                    ?.let { snackbarHost.showSnackbar(it) }
-            }
+            val imeVisible = rememberImeVisible()
+
             CompositionLocalProvider(LocalPreviousTabKey provides prevTabKey) {
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbarHost) },
+                    contentWindowInsets = WindowInsets.systemBars
+                        .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),                  
                     bottomBar = {
+                        val showBar = behavior.visible && !imeVisible
                         if (!isRecordTab) {
                             AnimatedVisibility(
-                                visible = behavior.visible,
+                                visible = showBar,
                                 enter = slideInVertically { it } + fadeIn(),
                                 exit = slideOutVertically { it } + fadeOut(),
                             ) {
                                 Box(
                                     Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 24.dp, vertical = 24.dp),
+                                        .windowInsetsPadding(
+                                            WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)
+                                        )
+                                        .padding(horizontal = 20.dp, vertical = 8.dp),
                                 ) {
                                     val barShape = RoundedCornerShape(18.dp)
                                     val barHeight = 70.dp
                                     val middleBtnSize = 56.dp
-                                    val middleBtnOffset = -(middleBtnSize * 0.37f)
+                                    val middleBtnOffset = -(middleBtnSize * 0.32f)
 
                                     Surface(
                                         shape = barShape,
@@ -125,7 +136,6 @@ data class TabContainer(
                                                         .align(Alignment.Center)
                                                         .fillMaxWidth()
                                                         .height(56.dp),
-                                                windowInsets = WindowInsets(0),
                                                 containerColor = Color.Transparent,
                                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                                             ) {
@@ -260,7 +270,8 @@ data class TabContainer(
                                 } else {
                                     base.nestedScroll(behavior.connection)
                                 }
-                            },
+                            }
+                            .imePadding(),
                     ) {
                         CurrentTab()
                     }
@@ -292,6 +303,12 @@ class BottomBarScrollBehavior(
                 return Offset.Zero
             }
         }
+}
+
+@Composable
+private fun rememberImeVisible(): Boolean {
+    val density = LocalDensity.current
+    return WindowInsets.ime.getBottom(density) > 0
 }
 
 @Composable

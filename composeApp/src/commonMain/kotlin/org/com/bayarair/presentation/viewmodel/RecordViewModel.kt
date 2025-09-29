@@ -19,6 +19,7 @@ class RecordViewModel(
     private val repo: RecordRepository,
     private val custRepo: CustomerRepository,
     private val historyShared: RecordHistoryShared,
+    private val statsShared: StatsShared,
 ) : StateScreenModel<RecordState>(RecordState()) {
     private val _events = MutableSharedFlow<RecordEvent>()
     val events: SharedFlow<RecordEvent> = _events.asSharedFlow()
@@ -100,8 +101,7 @@ class RecordViewModel(
             it.copy(selectedCustomerId = "", searchText = "", alamat = "", hp = "", meterLalu = 0)
         }
 
-    fun setMeteranText(raw: String) =
-        mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
+    fun setMeteranText(raw: String) = mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
 
     fun addOtherFee() {
         val st = state.value
@@ -146,8 +146,7 @@ class RecordViewModel(
         }
     }
 
-    fun removeFee(id: Long) =
-        mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
+    fun removeFee(id: Long) = mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
 
     fun saveRecord(bitmap: Bitmap?) {
         screenModelScope.launch {
@@ -214,6 +213,8 @@ class RecordViewModel(
                             ),
                         )
                         historyShared.prepend(env.data)
+                        statsShared.clearPieChart()
+                        statsShared.clearBarChart()
                     }.onFailure { e ->
                         _events.emit(RecordEvent.ShowSnackbar(e.message ?: "Gagal menyimpan"))
                         _events.emit(RecordEvent.Idle)

@@ -39,7 +39,7 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import org.com.bayarair.presentation.component.PdfViewer
-import org.com.bayarair.presentation.component.loadingOverlay
+import org.com.bayarair.presentation.component.LoadingOverlay
 import org.com.bayarair.presentation.navigation.TabContainer
 import org.com.bayarair.presentation.navigation.root
 import org.com.bayarair.presentation.viewmodel.RecordDetailEvent
@@ -153,7 +153,7 @@ data class RecordDetailScreen(
                 )
 
                 if (showLoading) {
-                    loadingOverlay(
+                    LoadingOverlay(
                         loadingMessage,
                     )
                 }

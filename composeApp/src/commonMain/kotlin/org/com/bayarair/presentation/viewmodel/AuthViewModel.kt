@@ -1,83 +1,82 @@
 package org.com.bayarair.presentation.viewmodel
 
-import cafe.adriel.voyager.core.model.ScreenModel
+import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.com.bayarair.core.AppEvent
 import org.com.bayarair.core.AppEvents
 import org.com.bayarair.data.repository.AuthRepository
 import org.com.bayarair.data.token.TokenHandler
 
-sealed interface AuthState {
-    data object Idle : AuthState
-
-    data object Loading : AuthState
-
-    data class Success(
-        val message: String,
-    ) : AuthState
-
-    data class ShowSnackbar(
-        val message: String,
-    ) : AuthState
-}
+data class AuthState(
+    val login: String = "",
+    val password: String = "",
+    val isLoading: Boolean = false,
+    val success: Boolean = false,
+)
 
 class AuthViewModel(
     private val tokenHandler: TokenHandler,
     private val authRepository: AuthRepository,
     private val appEvents: AppEvents,
-) : ScreenModel {
-    private val _login = MutableStateFlow("")
-    val login: StateFlow<String> = _login
-
-    private val _password = MutableStateFlow("")
-    val password: StateFlow<String> = _password
-
-    private val _state = MutableStateFlow<AuthState>(AuthState.Idle)
-    val state: StateFlow<AuthState> = _state
-
+    private val historyShared: RecordHistoryShared,
+    private val userShared: UserShared,
+) : StateScreenModel<AuthState>(AuthState()) {
     fun onLoginChange(v: String) {
-        _login.value = v
+        mutableState.update { it.copy(login = v) }
     }
 
     fun onPasswordChange(v: String) {
-        _password.value = v
+        mutableState.update { it.copy(password = v) }
     }
 
     fun onLoginClick() {
-        if (_state.value == AuthState.Loading) return
-        _state.value = AuthState.Loading
+        val s = state.value
+        if (s.isLoading) return
+
+        mutableState.update { it.copy(isLoading = true) }
 
         screenModelScope.launch {
-            val l = _login.value.trim()
-            val p = _password.value
+            val l = state.value.login.trim()
+            val p = state.value.password
 
             authRepository
                 .login(l, p)
                 .onSuccess { env ->
-                    val t = env.data!!.token
+                    val t = requireNotNull(env.data).token
                     tokenHandler.setToken(t)
-                    _state.value = AuthState.Success(env.message)
+                    appEvents.emit(AppEvent.ShowSnackbar(env.message))
+                    mutableState.update { it.copy(isLoading = false, success = true) }
                 }.onFailure { e ->
-                    _password.value = ""
-                    _state.value = AuthState.ShowSnackbar(e.message ?: "Login gagal")
+                    appEvents.emit(AppEvent.ShowSnackbar(e.message ?: "Login gagal"))
+                    mutableState.update {
+                        it.copy(password = "", isLoading = false, success = false)
+                    }
                 }
+        }
+    }
+
+    fun consumeSuccess() {
+        if (state.value.success) {
+            mutableState.update { it.copy(success = false) }
         }
     }
 
     fun logout() {
         screenModelScope.launch {
+            historyShared.clearHistory()
+            userShared.clearUser()
+
             val result = authRepository.logout()
             result
-                .onSuccess { env ->
-                    _state.value = AuthState.Idle
-                    appEvents.emit(AppEvent.Logout(env.message))
-                }.onFailure { e ->
-                    appEvents.emit(AppEvent.Logout(e.message ?: " Logout gagal"))
-                }
+                .onSuccess { env -> appEvents.emit(AppEvent.Logout(env.message)) }
+                .onFailure { e -> appEvents.emit(AppEvent.Logout(e.message ?: " Logout gagal")) }
+
             runCatching { tokenHandler.clear() }
+            mutableState.update { AuthState() }
         }
     }
 }

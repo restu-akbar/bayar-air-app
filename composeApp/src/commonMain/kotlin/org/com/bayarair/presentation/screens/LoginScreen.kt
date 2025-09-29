@@ -64,35 +64,19 @@ data class LoginScreen(
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
         val vm: AuthViewModel = koinScreenModel<AuthViewModel>()
-
-        val login by vm.login.collectAsState()
-        val password by vm.password.collectAsState()
         val state by vm.state.collectAsState()
 
-        val snackbarHost = remember { SnackbarHostState() }
         var showPass by rememberSaveable { mutableStateOf(false) }
-        val loading = state is AuthState.Loading
 
-        LaunchedEffect(message) {
-            message
-                ?.takeIf { it.isNotBlank() }
-                ?.let { snackbarHost.showSnackbar(it) }
-        }
-
-        LaunchedEffect(state) {
-            when (val s = state) {
-                is AuthState.Success -> {
-                    navigator.replaceAll(TabContainer(s.message))
-                }
-
-                is AuthState.ShowSnackbar -> snackbarHost.showSnackbar(s.message)
-                else -> Unit
+        LaunchedEffect(state.success) {
+            if (state.success) {
+                navigator.replaceAll(TabContainer())
+                vm.consumeSuccess()
             }
         }
 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
-            snackbarHost = { SnackbarHost(snackbarHost) },
         ) { padding ->
             Box(
                 modifier =
@@ -145,7 +129,7 @@ data class LoginScreen(
                     Spacer(Modifier.height(12.dp))
 
                     OutlinedTextField(
-                        value = login,
+                        value = state.login,
                         onValueChange = vm::onLoginChange,
                         label = {
                             Text(
@@ -196,7 +180,7 @@ data class LoginScreen(
                     Spacer(Modifier.height(12.dp))
 
                     OutlinedTextField(
-                        value = password,
+                        value = state.password,
                         onValueChange = vm::onPasswordChange,
                         shape =
                             androidx.compose.foundation.shape
@@ -252,7 +236,7 @@ data class LoginScreen(
 
                     Button(
                         onClick = vm::onLoginClick,
-                        enabled = !loading && login.isNotBlank() && password.isNotBlank(),
+                        enabled = !state.isLoading && state.login.isNotBlank() && state.password.isNotBlank(),
                         modifier =
                             Modifier
                                 .fillMaxWidth()
@@ -274,7 +258,7 @@ data class LoginScreen(
                                     ),
                             ),
                     ) {
-                        if (loading) {
+                        if (state.isLoading) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
