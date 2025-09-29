@@ -190,6 +190,7 @@ fun DualActionButton(
         Box(
             modifier = Modifier
                 .combinedClickable(
+                    indication = null,
                     enabled = enabled,
                     interactionSource = interaction,
                     onClick = onClick,
