@@ -40,7 +40,6 @@ class RecordRepository(
     suspend fun saveRecord(
         customerId: String,
         meter: Int,
-        meterLalu: Int,
         evidence: ByteArray,
         otherFees: Map<String, Long?>,
     ): Result<BaseResponse<MeterRecord>> =
@@ -52,7 +51,6 @@ class RecordRepository(
                         formData {
                             append("customer_id", customerId)
                             append("meter", meter.toString())
-                            append("meter_lalu", meterLalu.toString())
 
                             otherFees["Denda"]?.let { append("fine", it.toString()) }
                             otherFees["Materai"]?.let { append("duty_stamp", it.toString()) }

@@ -99,8 +99,7 @@ class RecordViewModel(
             it.copy(selectedCustomerId = "", searchText = "", alamat = "", hp = "", meterLalu = 0)
         }
 
-    fun setMeteranText(raw: String) =
-        mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
+    fun setMeteranText(raw: String) = mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
 
     fun addOtherFee() {
         val st = state.value
@@ -145,8 +144,7 @@ class RecordViewModel(
         }
     }
 
-    fun removeFee(id: Long) =
-        mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
+    fun removeFee(id: Long) = mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
 
     fun saveRecord(image: ByteArray?) {
         screenModelScope.launch {
@@ -197,7 +195,6 @@ class RecordViewModel(
                     .saveRecord(
                         customerId = st.selectedCustomerId,
                         meter = current.toInt(),
-                        meterLalu = st.meterLalu,
                         evidence = image,
                         otherFees = fees,
                     ).onSuccess { env ->
