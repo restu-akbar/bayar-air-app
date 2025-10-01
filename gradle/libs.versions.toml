@@ -17,16 +17,16 @@ junit = "4.13.2"
 kotlin = "2.2.20"
 kotlinx-coroutines = "1.10.2"
 navigationCompose = "2.8.0-alpha02"
-kotlinSerialization= "1.9.0"
+kotlinSerialization = "1.9.0"
 koin = "4.1.1"
 ktor = "3.3.0"
 coil3 = "3.3.0"
 sqlite = "2.6.0"
-ksp="2.2.20-2.0.2"
+ksp = "2.2.20-2.0.2"
 room = "2.8.0"
-voyager="1.1.0-beta03"
-webView="0.36.0"
-datetime="0.7.1"
+voyager = "1.1.0-beta03"
+webView = "0.36.0"
+datetime = "0.7.1"
 
 composeChartsVersion = "0.1.11"
 
@@ -46,7 +46,7 @@ androidx-lifecycle-viewmodel = { group = "org.jetbrains.androidx.lifecycle", nam
 androidx-lifecycle-runtime-compose = { group = "org.jetbrains.androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "androidx-lifecycle" }
 kotlinx-coroutines-swing = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 
-jetbrains-compose-navigation = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref= "navigationCompose"}
+jetbrains-compose-navigation = { group = "org.jetbrains.androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinSerialization" }
 
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
@@ -75,10 +75,10 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
 
 navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }
-navigator-tabs = { module = "cafe.adriel.voyager:voyager-tab-navigator", version.ref = "voyager"}
-navigator-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyager"}
-navigator-viewmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", version.ref = "voyager"}
-navigator-koin = { module = "cafe.adriel.voyager:voyager-koin", version.ref = "voyager"}
+navigator-tabs = { module = "cafe.adriel.voyager:voyager-tab-navigator", version.ref = "voyager" }
+navigator-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyager" }
+navigator-viewmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", version.ref = "voyager" }
+navigator-koin = { module = "cafe.adriel.voyager:voyager-koin", version.ref = "voyager" }
 
 webView = { module = "com.google.accompanist:accompanist-webview", version.ref = "webView" }
 

@@ -17,18 +17,33 @@ import org.com.bayarair.presentation.viewmodel.RecordViewModel
 import org.com.bayarair.presentation.viewmodel.SplashViewModel
 import org.com.bayarair.presentation.viewmodel.StatsShared
 import org.com.bayarair.presentation.viewmodel.UserShared
+import org.koin.core.KoinApplication
+import org.koin.core.context.startKoin
+import org.koin.core.module.Module
 import org.koin.dsl.module
+
+typealias KoinAppDeclaration = KoinApplication.() -> Unit
+
+fun initKoin(
+    appDeclaration: KoinAppDeclaration = {},
+    vararg platformModules: Module
+) = startKoin {
+    appDeclaration()
+    modules(commonModule, *platformModules)
+}
 
 val commonModule =
     module {
-        single { AppEvents() }
+        // httpclient
         single<HttpClient> { createHttpClient() }
 
+        // repository
         single<AuthRepository> { AuthRepository(get<HttpClient>()) }
         single<RecordRepository> { RecordRepository(get<HttpClient>()) }
         single<ProfileRepository> { ProfileRepository(get<HttpClient>()) }
         single<CustomerRepository> { CustomerRepository(get<HttpClient>()) }
 
+        // viewmodel
         factory<AuthViewModel> {
             AuthViewModel(
                 get<TokenHandler>(),
@@ -64,8 +79,9 @@ val commonModule =
                 get<UserShared>(),
             )
         }
-
+        // data shared
         single { RecordHistoryShared() }
         single { UserShared() }
         single { StatsShared() }
+        single { AppEvents() }
     }
