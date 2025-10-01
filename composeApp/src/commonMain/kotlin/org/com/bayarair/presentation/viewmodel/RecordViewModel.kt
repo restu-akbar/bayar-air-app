@@ -1,6 +1,5 @@
 package org.com.bayarair.presentation.viewmodel
 
-import android.graphics.Bitmap
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import kotlinx.coroutines.Job
@@ -13,7 +12,6 @@ import kotlinx.coroutines.launch
 import org.com.bayarair.data.model.Customer
 import org.com.bayarair.data.repository.CustomerRepository
 import org.com.bayarair.data.repository.RecordRepository
-import java.io.ByteArrayOutputStream
 
 class RecordViewModel(
     private val repo: RecordRepository,
@@ -101,7 +99,8 @@ class RecordViewModel(
             it.copy(selectedCustomerId = "", searchText = "", alamat = "", hp = "", meterLalu = 0)
         }
 
-    fun setMeteranText(raw: String) = mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
+    fun setMeteranText(raw: String) =
+        mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
 
     fun addOtherFee() {
         val st = state.value
@@ -146,9 +145,10 @@ class RecordViewModel(
         }
     }
 
-    fun removeFee(id: Long) = mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
+    fun removeFee(id: Long) =
+        mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
 
-    fun saveRecord(bitmap: Bitmap?) {
+    fun saveRecord(image: ByteArray?) {
         screenModelScope.launch {
             try {
                 val st = state.value
@@ -180,16 +180,13 @@ class RecordViewModel(
                     return@launch
                 }
 
-                if (bitmap == null) {
+                if (image == null || image.isEmpty()) {
                     _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran"))
                     _events.emit(RecordEvent.Idle)
                     return@launch
                 }
 
                 _events.emit(RecordEvent.ShowLoading("Menyimpan Data"))
-                val stream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
-                val photoBytes = stream.toByteArray()
 
                 val fees: Map<String, Long> =
                     st.otherFees
@@ -201,7 +198,7 @@ class RecordViewModel(
                         customerId = st.selectedCustomerId,
                         meter = current.toInt(),
                         meterLalu = st.meterLalu,
-                        evidence = photoBytes,
+                        evidence = image,
                         otherFees = fees,
                     ).onSuccess { env ->
                         _events.emit(RecordEvent.ShowSnackbar(env.message))
@@ -209,7 +206,7 @@ class RecordViewModel(
                         _events.emit(
                             RecordEvent.Saved(
                                 env.data!!.receipt,
-                                env.data!!.id,
+                                env.data.id,
                             ),
                         )
                         historyShared.prepend(env.data)

@@ -2,19 +2,25 @@
 
 package org.com.bayarair.presentation.screens
 
-import android.Manifest
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.net.Uri
-import android.os.Environment
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -30,15 +36,38 @@ import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -48,12 +77,14 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 import kotlinx.coroutines.launch
+import org.com.bayarair.platform.PickResult
+import org.com.bayarair.platform.decodeImage
+import org.com.bayarair.platform.rememberImageGateway
 import org.com.bayarair.presentation.component.LoadingOverlay
 import org.com.bayarair.presentation.navigation.HomeTab
 import org.com.bayarair.presentation.navigation.LocalPreviousTabKey
@@ -64,28 +95,29 @@ import org.com.bayarair.presentation.viewmodel.RecordEvent
 import org.com.bayarair.presentation.viewmodel.RecordViewModel
 import org.com.bayarair.utils.formatRupiah
 import org.com.bayarair.utils.groupThousands
-import java.io.File
 
 object RecordScreen : Screen {
     @OptIn(ExperimentalMaterialApi::class)
     @Composable
     override fun Content() {
-        val vm: RecordViewModel = koinScreenModel<RecordViewModel>()
+        val vm: RecordViewModel = koinScreenModel()
         val state by vm.state.collectAsState()
+        var expanded by remember { mutableStateOf(false) }
+        val focusManager = LocalFocusManager.current
+
         val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.current
         val prevKey = LocalPreviousTabKey.current.value
-        val context = LocalContext.current
-        val focusManager = LocalFocusManager.current
-        var expanded by remember { mutableStateOf(false) }
-        var photoUri by remember { mutableStateOf<Uri?>(null) }
-        var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
 
         var showFullLoading by remember { mutableStateOf(false) }
         var loadMessage by remember { mutableStateOf("") }
+
+        val imageGateway = rememberImageGateway()
+        var image by remember { mutableStateOf<PickResult?>(null) }
+        val imageBitmap: ImageBitmap? = remember(image) { image?.let { decodeImage(it.bytes) } }
 
         LaunchedEffect(Unit) { vm.load(minMs = 1000).join() }
 
@@ -94,7 +126,7 @@ object RecordScreen : Screen {
                 when (ev) {
                     is RecordEvent.ShowSnackbar -> snackbarHostState.showSnackbar(ev.message)
                     is RecordEvent.Saved -> {
-                        bitmap = null
+                        image = null
                         navigator?.root()?.push(RecordDetailScreen(ev.url, ev.recordId, false))
                     }
 
@@ -108,38 +140,25 @@ object RecordScreen : Screen {
             }
         }
 
-        val takePictureLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.TakePicture()
-        ) { success ->
-            if (success) {
-                val uri = photoUri ?: return@rememberLauncherForActivityResult
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    bitmap = BitmapFactory.decodeStream(stream)
+        fun onOpenCamera() {
+            scope.launch {
+                val ok = imageGateway.ensureCameraPermission()
+                if (!ok) {
+                    snackbarHostState.showSnackbar("Izin kamera ditolak")
+                    return@launch
+                }
+                image = imageGateway.captureImage()
+                if (image == null) {
+                    snackbarHostState.showSnackbar("Gagal mengambil foto")
                 }
             }
         }
 
-        fun openCamera() {
-            val imageFile = File(
-                context.getExternalFilesDir(Environment.DIRECTORY_PICTURES),
-                "meter_${System.currentTimeMillis()}.jpg"
-            )
-            val uri = FileProvider.getUriForFile(
-                context, "${context.packageName}.fileprovider", imageFile
-            )
-            photoUri = uri
-            takePictureLauncher.launch(uri)
-        }
-
-        val cameraPermissionLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { granted -> if (granted) openCamera() }
-        val pickImageLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.GetContent()
-        ) { uri: Uri? ->
-            uri?.let {
-                context.contentResolver.openInputStream(it)?.use { stream ->
-                    bitmap = BitmapFactory.decodeStream(stream)
+        fun onPickFromGallery() {
+            scope.launch {
+                image = imageGateway.pickImage()
+                if (image == null) {
+                    snackbarHostState.showSnackbar("Tidak ada gambar yang dipilih")
                 }
             }
         }
@@ -387,15 +406,14 @@ object RecordScreen : Screen {
                             .clip(RoundedCornerShape(4.dp))
                             .background(formBg)
                             .border(1.dp, Color.LightGray, RoundedCornerShape(4.dp))
-                            .clickable { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }
+                            .clickable { onOpenCamera() }
                             .then(
-                                if (bitmap != null) Modifier.heightIn(max = 400.dp) else Modifier.height(
-                                    230.dp
-                                )
+                                if (imageBitmap != null) Modifier.heightIn(max = 400.dp)
+                                else Modifier.height(230.dp)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (bitmap == null) {
+                        if (imageBitmap == null) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(
                                     imageVector = Icons.Outlined.PhotoCamera,
@@ -412,17 +430,20 @@ object RecordScreen : Screen {
                             }
                         } else {
                             Image(
-                                bitmap = bitmap!!.asImageBitmap(),
+                                bitmap = imageBitmap,
                                 contentDescription = "Foto",
                                 contentScale = ContentScale.Fit,
-                                modifier = Modifier.fillMaxWidth().wrapContentHeight()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentHeight()
                             )
                         }
                     }
 
+
                     // Upload dari galeri
                     FilledTonalButton(
-                        onClick = { pickImageLauncher.launch("image/*") },
+                        onClick = { onPickFromGallery() },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
@@ -554,7 +575,7 @@ object RecordScreen : Screen {
                                     )
                                 }
 
-                                else -> vm.saveRecord(bitmap)
+                                else -> vm.saveRecord(image = image?.bytes)
                             }
                         },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
