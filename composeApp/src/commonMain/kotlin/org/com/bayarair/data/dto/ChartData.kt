@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 data class PieChart(
     val bulan: Int,
     val total: Int,
-    val persentase: Int,
+    val persentase: Double,
 )
 
 @Serializable

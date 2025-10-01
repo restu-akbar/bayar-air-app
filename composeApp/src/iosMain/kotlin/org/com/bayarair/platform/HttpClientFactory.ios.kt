@@ -1,5 +1,5 @@
 package org.com.bayarair.platform
-// iosMain/kotlin/.../Network.kt
+
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.darwin.Darwin
 import io.ktor.client.plugins.HttpTimeout
@@ -12,7 +12,7 @@ import org.com.bayarair.data.token.TokenHandler
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
-private object IosDI : KoinComponent {
+object IosDI : KoinComponent {
     val tokenHandler by inject<TokenHandler>()
     val appEvents by inject<AppEvents>()
 }

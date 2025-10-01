@@ -53,7 +53,6 @@ val ColorScheme.inactiveButtonText: Color
 
 @Composable
 fun BayarAirTheme(
-//     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val colors = LightColors

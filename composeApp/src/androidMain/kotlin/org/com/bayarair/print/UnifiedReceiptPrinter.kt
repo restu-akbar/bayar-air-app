@@ -80,7 +80,6 @@ class UnifiedReceiptPrinter(
                 Manifest.permission.BLUETOOTH_SCAN,
             )
 
-        // sudah granted semua?
         val alreadyGranted =
             perms.all {
                 ContextCompat.checkSelfPermission(
@@ -98,7 +97,6 @@ class UnifiedReceiptPrinter(
                         "req_bt_perms_${hashCode()}",
                         ActivityResultContracts.RequestMultiplePermissions(),
                     ) { result ->
-                        // cek dari callback (dan fallback cek langsung)
                         val ok =
                             perms.all { p ->
                                 result[p] == true ||
@@ -132,7 +130,6 @@ class UnifiedReceiptPrinter(
                         ActivityResultContracts.StartActivityForResult(),
                     ) {
                         launcher?.unregister()
-                        // bisa cek adapter.isEnabled atau resultCode == Activity.RESULT_OK
                         cont.resume(adapter.isEnabled)
                     }
                 cont.invokeOnCancellation { launcher?.unregister() }

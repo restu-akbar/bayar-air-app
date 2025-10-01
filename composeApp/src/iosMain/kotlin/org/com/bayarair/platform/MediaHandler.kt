@@ -28,8 +28,6 @@ private fun topController(): UIViewController {
 private class IosImageGateway : ImageGateway {
 
     override suspend fun ensureCameraPermission(): Boolean {
-        // iOS akan handle sendiri saat first access; di sini kembalikan true saja.
-        // (Kalau mau lebih ketat, cek AVAuthorizationStatus.video)
         return true
     }
 
@@ -61,7 +59,6 @@ private class IosImageGateway : ImageGateway {
 
             val delegate = Delegate()
             picker.delegate = delegate
-            // keep delegate alive until resume
             objc_setAssociatedObject(picker, "delegate_key", delegate, OBJC_ASSOCIATION_RETAIN)
             topController().presentViewController(picker, animated = true, completion = null)
         }
@@ -91,7 +88,7 @@ private class IosImageGateway : ImageGateway {
                     if (image == null) {
                         cont.resume(null); return
                     }
-                    val data = image.jpegData(0.9) // NSData?
+                    val data = image.jpegData(0.9)
                     cont.resume(
                         if (data != null) PickResult((data as NSData).toByteArray(), "image/jpeg")
                         else null
@@ -111,7 +108,6 @@ private class IosImageGateway : ImageGateway {
         }
 }
 
-// util kecil
 private fun NSData.toByteArray(): ByteArray {
     val buffer = ByteArray(this.length.toInt())
     memScoped {
@@ -124,6 +120,5 @@ private fun NSData.toByteArray(): ByteArray {
 @Composable
 actual fun rememberImageGateway(): ImageGateway = remember { IosImageGateway() }
 
-// Render ke Compose ImageBitmap
 actual fun decodeImage(bytes: ByteArray): ImageBitmap =
     org.jetbrains.skia.Image.makeFromEncoded(bytes).asImageBitmap()

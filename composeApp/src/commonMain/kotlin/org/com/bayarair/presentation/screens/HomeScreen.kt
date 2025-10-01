@@ -466,7 +466,11 @@ fun ChartSwitcher(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
-            contentAlignment = Alignment.Center
+            contentAlignment = if (pieChart == null && barChart == null) {
+                    Alignment.Center
+                } else {
+                    Alignment.TopCenter
+               }
         ) {
             when {
                 graph && pieChart != null -> {
@@ -564,7 +568,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
         totalCust.toFloat(),
         totalRecordByUser.toFloat()
     )
-    val labels = listOf("Total Pelanggan", "Total Pencatatan")
+    val labels = listOf("Pelanggan Tercatat", "Pelanggan Tidak/Belum Tercatat")
     val total = values.sum().coerceAtLeast(1f)
 
     val scheme = MaterialTheme.colorScheme
