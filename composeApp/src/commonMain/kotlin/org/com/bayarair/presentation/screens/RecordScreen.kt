@@ -12,13 +12,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
@@ -51,9 +51,10 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -67,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
@@ -180,10 +182,8 @@ object RecordScreen : Screen {
             }
         )
 
-        Scaffold(
-            containerColor = bgBlue,
-            snackbarHost = { SnackbarHost(snackbarHostState) }
-        ) {
+        StickyScaffold(bgBlue = bgBlue, textOnBg = textOnBg)
+        {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -196,29 +196,6 @@ object RecordScreen : Screen {
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    IconButton(
-                        onClick = {
-                            tabNavigator.current = when (prevKey) {
-                                HomeTab.key -> HomeTab
-                                ProfileTab.key -> ProfileTab
-                                else -> HomeTab
-                            }
-                        },
-                        modifier = Modifier
-                            .statusBarsPadding()
-                            .padding(start = 4.dp)
-                            .size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
-                            contentDescription = "Kembali",
-                            tint = textOnBg,
-                            modifier = Modifier.size(18.dp)
-
-                        )
-                    }
-
-                    // Judul
                     Text(
                         text = "Catat Air!",
                         style = MaterialTheme.typography.headlineMedium,
@@ -602,6 +579,59 @@ object RecordScreen : Screen {
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun StickyScaffold(
+    bgBlue: Color,
+    textOnBg: Color,
+    content: @Composable () -> Unit
+) {
+    val tabNavigator = LocalTabNavigator.current
+    val prevKey = LocalPreviousTabKey.current.value
+
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
+    Scaffold(
+        containerColor = bgBlue,
+        topBar = {
+            TopAppBar(
+                title = {},
+                navigationIcon = {
+                    IconButton(
+                        onClick = {
+                            tabNavigator.current = when (prevKey) {
+                                HomeTab.key -> HomeTab
+                                ProfileTab.key -> ProfileTab
+                                else -> HomeTab
+                            }
+                        },
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
+                            contentDescription = "Kembali",
+                            tint = textOnBg,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = bgBlue,
+                    scrolledContainerColor = bgBlue,
+                    navigationIconContentColor = textOnBg
+                ),
+                scrollBehavior = scrollBehavior,
+                windowInsets = WindowInsets(0)
+            )
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
+    ) { innerPadding ->
+        Box(Modifier.padding(innerPadding)) {
+            content()
         }
     }
 }

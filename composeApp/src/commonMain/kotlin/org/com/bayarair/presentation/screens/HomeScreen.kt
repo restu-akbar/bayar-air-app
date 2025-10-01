@@ -22,7 +22,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -106,8 +106,11 @@ import org.koin.compose.koinInject
 import java.text.DecimalFormat
 import kotlin.math.atan2
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.hypot
+import kotlin.math.log10
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -467,10 +470,10 @@ fun ChartSwitcher(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
             contentAlignment = if (pieChart == null && barChart == null) {
-                    Alignment.Center
-                } else {
-                    Alignment.TopCenter
-               }
+                Alignment.Center
+            } else {
+                Alignment.TopCenter
+            }
         ) {
             when {
                 graph && pieChart != null -> {
@@ -568,7 +571,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
         totalCust.toFloat(),
         totalRecordByUser.toFloat()
     )
-    val labels = listOf("Pelanggan Tercatat", "Pelanggan Tidak/Belum Tercatat")
+    val labels = listOf("Pelanggan Tidak/Belum Tercatat", "Pelanggan Tercatat")
     val total = values.sum().coerceAtLeast(1f)
 
     val scheme = MaterialTheme.colorScheme
@@ -841,7 +844,26 @@ fun BarChartView(totalCust: Int, barChart: BarChart) {
     val dataMax = remember(barsData) {
         barsData.maxOfOrNull { it.values.maxOfOrNull { d -> d.value } ?: 0.0 } ?: 0.0
     }
+
+    fun calcYStep(maxValue: Double, targetSteps: Int = 5): Double {
+        if (maxValue <= 0) return 1.0
+
+        val rawStep = maxValue / targetSteps
+        val magnitude = 10.0.pow(floor(log10(rawStep)))
+        val residual = rawStep / magnitude
+
+        val niceResidual = when {
+            residual < 1.5 -> 1.0
+            residual < 3 -> 2.0
+            residual < 7 -> 5.0
+            else -> 10.0
+        }
+
+        return (niceResidual * magnitude)
+    }
+
     val yMax = ceil(maxOf(totalCust.toDouble(), dataMax)).toInt()
+    val yStep = calcYStep(yMax.toDouble())
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -888,7 +910,7 @@ fun BarChartView(totalCust: Int, barChart: BarChart) {
                         ),
                         indicatorProperties = HorizontalIndicatorProperties(
                             textStyle = TextStyle(fontSize = 12.sp, color = Color.Black),
-                            count = IndicatorCount.StepBased(stepBy = 2.0),
+                            count = IndicatorCount.StepBased(stepBy = yStep),
                             position = IndicatorPosition.Horizontal.Start,
                             contentBuilder = { value -> value.toInt().toString() }
                         ),
@@ -974,258 +996,286 @@ fun HistorySection(
     }
 
     PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, state = ptrState) {
-        Column(Modifier.fillMaxSize()) {
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val shape = RoundedCornerShape(6.dp)
-                val searchHeight = 48.dp
-                Box(
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.Start,
+            contentPadding = PaddingValues(bottom = 12.dp)
+        ) {
+            item {
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(searchHeight)
-                        .clip(shape)
-                        .background(scheme.primaryContainer)
-                        .padding(horizontal = 12.dp)
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    var focused by remember { mutableStateOf(false) }
-                    BasicTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            color = scheme.onPrimaryContainer
-                        ),
-                        cursorBrush = SolidColor(scheme.onPrimaryContainer),
+                    val shape = RoundedCornerShape(6.dp)
+                    val searchHeight = 48.dp
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .onFocusChanged { focused = it.isFocused }
-                            .padding(vertical = 12.dp)
-                    ) { innerTextField ->
-                        Box(Modifier.fillMaxWidth()) {
-                            if (query.isEmpty() && !focused) {
-                                Text(
-                                    "Cari nama pelanggan",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = scheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                )
+                            .weight(1f)
+                            .height(searchHeight)
+                            .clip(shape)
+                            .background(scheme.primaryContainer)
+                            .padding(horizontal = 12.dp)
+                    ) {
+                        var focused by remember { mutableStateOf(false) }
+                        BasicTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                color = scheme.onPrimaryContainer
+                            ),
+                            cursorBrush = SolidColor(scheme.onPrimaryContainer),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .onFocusChanged { focused = it.isFocused }
+                                .padding(vertical = 12.dp)
+                        ) { innerTextField ->
+                            Box(Modifier.fillMaxWidth()) {
+                                if (query.isEmpty() && !focused) {
+                                    Text(
+                                        "Cari nama pelanggan",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = scheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                                innerTextField()
                             }
-                            innerTextField()
                         }
                     }
-                }
 
-                Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(8.dp))
 
-                Box {
-                    FilledIconButton(
-                        onClick = { filterExpanded = true },
-                        modifier = Modifier
-                            .height(searchHeight)
-                            .width(searchHeight)
-                            .clip(RoundedCornerShape(6.dp)),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = scheme.primaryContainer,
-                            contentColor = scheme.onPrimaryContainer
-                        ),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter status")
-                    }
+                    Box {
+                        FilledIconButton(
+                            onClick = { filterExpanded = true },
+                            modifier = Modifier
+                                .height(searchHeight)
+                                .width(searchHeight)
+                                .clip(RoundedCornerShape(6.dp)),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = scheme.primaryContainer,
+                                contentColor = scheme.onPrimaryContainer
+                            ),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Icon(Icons.Default.FilterList, contentDescription = "Filter status")
+                        }
 
-                    DropdownMenu(
-                        expanded = filterExpanded,
-                        onDismissRequest = { filterExpanded = false },
-                        modifier = Modifier.background(
-                            MaterialTheme.colorScheme.primaryContainer.copy(
-                                alpha = 0.9f
+                        DropdownMenu(
+                            expanded = filterExpanded,
+                            onDismissRequest = { filterExpanded = false },
+                            modifier = Modifier.background(
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
                             )
-                        )
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Semua") },
-                            onClick = { payFilter = PayFilter.ALL; filterExpanded = false },
-                            leadingIcon = {
-                                if (payFilter == PayFilter.ALL) Icon(
-                                    Icons.Default.Check,
-                                    null
-                                )
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Sudah Bayar") },
-                            onClick = { payFilter = PayFilter.SUDAH; filterExpanded = false },
-                            leadingIcon = {
-                                if (payFilter == PayFilter.SUDAH) Icon(
-                                    Icons.Default.Check,
-                                    null
-                                )
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Belum Bayar") },
-                            onClick = { payFilter = PayFilter.BELUM; filterExpanded = false },
-                            leadingIcon = {
-                                if (payFilter == PayFilter.BELUM) Icon(
-                                    Icons.Default.Check,
-                                    null
-                                )
-                            }
-                        )
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Semua") },
+                                onClick = { payFilter = PayFilter.ALL; filterExpanded = false },
+                                leadingIcon = {
+                                    if (payFilter == PayFilter.ALL) Icon(
+                                        Icons.Default.Check,
+                                        null
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Sudah Bayar") },
+                                onClick = { payFilter = PayFilter.SUDAH; filterExpanded = false },
+                                leadingIcon = {
+                                    if (payFilter == PayFilter.SUDAH) Icon(
+                                        Icons.Default.Check,
+                                        null
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Belum Bayar") },
+                                onClick = { payFilter = PayFilter.BELUM; filterExpanded = false },
+                                leadingIcon = {
+                                    if (payFilter == PayFilter.BELUM) Icon(
+                                        Icons.Default.Check,
+                                        null
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
 
             if (filteredRecords.isEmpty()) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        "Belum ada history",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                item {
+                    ElevatedCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .fillParentMaxHeight(),
+                        shape = RoundedCornerShape(6.dp),
+                        colors = CardDefaults.elevatedCardColors(containerColor = scheme.primaryContainer)
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                "Belum ada history",
+                                color = Color.Gray,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
                 }
             } else {
-                ElevatedCard(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(6.dp),
-                    colors = CardDefaults.elevatedCardColors(containerColor = scheme.primaryContainer)
-                ) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(
-                            "History Pencatatan",
-                            style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                            fontWeight = FontWeight.Bold
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp),
+                        tonalElevation = 2.dp,
+                        shadowElevation = 2.dp,
+                        color = scheme.primaryContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(
+                                "History Pencatatan",
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            // Divider pertama agar konten di bawah terasa nyatu
+                            HorizontalDivider(thickness = 0.6.dp, color = scheme.outlineVariant)
+                        }
+                    }
+                }
+
+                itemsIndexed(filteredRecords, key = { _, it -> it.id }) { index, record ->
+                    val isLast = index == filteredRecords.lastIndex
+
+                    val shape = when {
+                        isLast -> RoundedCornerShape(bottomStart = 6.dp, bottomEnd = 6.dp)
+                        else -> RectangleShape
+                    }
+
+                    Surface(
+                        shape = shape,
+                        tonalElevation = 2.dp,
+                        shadowElevation = 2.dp,
+                        color = scheme.primaryContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        val interaction = remember { MutableInteractionSource() }
+                        val isPressed by interaction.collectIsPressedAsState()
+                        val overlayAlpha by animateFloatAsState(
+                            targetValue = if (isPressed) 0.16f else 0f,
+                            animationSpec = tween(60),
+                            label = "pressOverlayAlpha"
                         )
-                        Spacer(Modifier.height(8.dp))
+                        val scale by animateFloatAsState(
+                            targetValue = if (isPressed) 0.99f else 1f,
+                            animationSpec = tween(60),
+                            label = "pressScale"
+                        )
+                        val scope = rememberCoroutineScope()
 
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            items(filteredRecords, key = { it.id }) { record ->
-                                val interaction = remember { MutableInteractionSource() }
-                                val isPressed by interaction.collectIsPressedAsState()
-                                val overlayAlpha by animateFloatAsState(
-                                    targetValue = if (isPressed) 0.16f else 0f,
-                                    animationSpec = tween(60),
-                                    label = "pressOverlayAlpha"
-                                )
-                                val scale by animateFloatAsState(
-                                    targetValue = if (isPressed) 0.99f else 1f,
-                                    animationSpec = tween(60),
-                                    label = "pressScale"
-                                )
-                                val scope = rememberCoroutineScope()
-
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .graphicsLayer { scaleX = scale; scaleY = scale }
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .drawWithContent {
-                                            drawContent()
-                                            if (overlayAlpha > 0f) {
-                                                drawRect(
-                                                    color = scheme.onPrimaryContainer,
-                                                    alpha = overlayAlpha
-                                                )
-                                            }
-                                        }
-                                        .clickable(
-                                            interactionSource = interaction,
-                                            indication = ripple(
-                                                bounded = true,
-                                                radius = 240.dp,
-                                                color = scheme.onPrimaryContainer
-                                            ),
-                                            onClick = {
-                                                scope.launch {
-                                                    delay(100)
-                                                    navigator.root().push(
-                                                        RecordDetailScreen(
-                                                            record.receipt,
-                                                            record.id,
-                                                            true
-                                                        )
-                                                    )
-                                                }
-                                            }
+                        Column(
+                            modifier = Modifier
+                                .graphicsLayer { scaleX = scale; scaleY = scale }
+                                .clip(shape)
+                                .drawWithContent {
+                                    drawContent()
+                                    if (overlayAlpha > 0f) {
+                                        drawRect(
+                                            color = scheme.onPrimaryContainer,
+                                            alpha = overlayAlpha
                                         )
-                                        .padding(vertical = 6.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = record.customer.name,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = "${record.meter} m³",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            maxLines = 1
-                                        )
-                                    }
-                                    Spacer(Modifier.height(2.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = record.customer.address,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = scheme.onSurfaceVariant,
-                                            maxLines = 1
-                                        )
-
-                                        val (statusLabel, bgColor, fgColor) = when (record.status) {
-                                            "sudah_bayar" -> Triple(
-                                                "Sudah Bayar",
-                                                scheme.tertiaryContainer,
-                                                scheme.onTertiaryContainer
-                                            )
-
-                                            "belum_bayar" -> Triple(
-                                                "Belum Bayar",
-                                                scheme.error.copy(alpha = 0.15f),
-                                                scheme.error
-                                            )
-
-                                            else -> Triple(
-                                                "-",
-                                                scheme.surfaceVariant,
-                                                scheme.onSurfaceVariant
-                                            )
-                                        }
-
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(bgColor)
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = statusLabel,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = fgColor,
-                                                maxLines = 1
-                                            )
-                                        }
                                     }
                                 }
-                                HorizontalDivider(thickness = 0.6.dp, color = scheme.outlineVariant)
+                                .clickable(
+                                    interactionSource = interaction,
+                                    indication = ripple(
+                                        bounded = true,
+                                        radius = 240.dp,
+                                        color = scheme.onPrimaryContainer
+                                    ),
+                                    onClick = {
+                                        scope.launch {
+                                            delay(100)
+                                            navigator.root().push(
+                                                RecordDetailScreen(record.receipt, record.id, true)
+                                            )
+                                        }
+                                    }
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = record.customer.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    text = "${record.meter} m³",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Text(
+                                    text = record.customer.address,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = scheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                val (statusLabel, bgColor, fgColor) = when (record.status) {
+                                    "sudah_bayar" -> Triple(
+                                        "Sudah Bayar",
+                                        scheme.tertiaryContainer,
+                                        scheme.onTertiaryContainer
+                                    )
+
+                                    "belum_bayar" -> Triple(
+                                        "Belum Bayar",
+                                        scheme.error.copy(alpha = 0.15f),
+                                        scheme.error
+                                    )
+
+                                    else -> Triple(
+                                        "-",
+                                        scheme.surfaceVariant,
+                                        scheme.onSurfaceVariant
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(bgColor)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = statusLabel,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = fgColor,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }

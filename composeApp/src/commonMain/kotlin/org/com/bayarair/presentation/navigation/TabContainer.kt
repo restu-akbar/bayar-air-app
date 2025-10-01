@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -66,6 +65,9 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.navigator.tab.CurrentTab
 import cafe.adriel.voyager.navigator.tab.TabNavigator
+import org.com.bayarair.platform.SystemBackHandler
+import org.com.bayarair.platform.minimizeApp
+import org.com.bayarair.platform.rememberPlatformHandle
 
 val LocalPreviousTabKey = staticCompositionLocalOf { mutableStateOf(HomeTab.key) }
 
@@ -89,14 +91,41 @@ data class TabContainer(
             }
 
             val isRecordTab = tabNavigator.current.key == RecordTab.key
-
             val imeVisible = rememberImeVisible()
+
+            val innerNav = cafe.adriel.voyager.navigator.LocalNavigator.current
+            val platformHandle = rememberPlatformHandle()
+
+            val handleBack: () -> Unit = remember(
+                tabNavigator.current.key,
+                prevTabKey.value,
+                innerNav,
+                platformHandle
+            ) {
+                {
+                    when {
+                        innerNav?.canPop == true -> innerNav.pop()
+                        prevTabKey.value != tabNavigator.current.key -> {
+                            tabNavigator.current = when (prevTabKey.value) {
+                                HomeTab.key -> HomeTab
+                                ProfileTab.key -> ProfileTab
+                                RecordTab.key -> RecordTab
+                                else -> HomeTab
+                            }
+                        }
+
+                        else -> minimizeApp(platformHandle)
+                    }
+                }
+            }
+
+            SystemBackHandler(onBack = handleBack)
 
             CompositionLocalProvider(LocalPreviousTabKey provides prevTabKey) {
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbarHost) },
                     contentWindowInsets = WindowInsets.systemBars
-                        .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),                  
+                        .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
                     bottomBar = {
                         val showBar = behavior.visible && !imeVisible
                         if (!isRecordTab) {

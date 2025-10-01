@@ -80,7 +80,6 @@ data class RecordDetailScreen(
         }
 
         Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
                 TopAppBar(
                     title = { Text("Struk Pembayaran") },

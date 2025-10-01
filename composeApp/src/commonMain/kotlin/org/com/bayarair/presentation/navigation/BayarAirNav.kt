@@ -10,6 +10,7 @@ import cafe.adriel.voyager.navigator.CurrentScreen
 import cafe.adriel.voyager.navigator.Navigator
 import org.com.bayarair.core.AppEvent
 import org.com.bayarair.core.AppEvents
+import org.com.bayarair.platform.SystemBackHandler
 import org.com.bayarair.presentation.screens.LoginScreen
 import org.com.bayarair.presentation.screens.SplashScreen
 
