@@ -99,7 +99,8 @@ class RecordViewModel(
             it.copy(selectedCustomerId = "", searchText = "", alamat = "", hp = "", meterLalu = 0)
         }
 
-    fun setMeteranText(raw: String) = mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
+    fun setMeteranText(raw: String) =
+        mutableState.update { it.copy(meteranText = raw.filter(Char::isDigit)) }
 
     fun addOtherFee() {
         val st = state.value
@@ -144,7 +145,8 @@ class RecordViewModel(
         }
     }
 
-    fun removeFee(id: Long) = mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
+    fun removeFee(id: Long) =
+        mutableState.update { it.copy(otherFees = it.otherFees.filterNot { f -> f.id == id }) }
 
     fun saveRecord(image: ByteArray?) {
         screenModelScope.launch {
@@ -156,7 +158,12 @@ class RecordViewModel(
                     return@launch
                 }
                 if (st.selectedCustomerId.isBlank()) {
-                    _events.emit(RecordEvent.ShowSnackbar("Pilih pelanggan dulu"))
+                    _events.emit(RecordEvent.ShowSnackbar("Pilih pelanggan terlebih dahulu"))
+                    _events.emit(RecordEvent.Idle)
+                    return@launch
+                }
+                if (image == null || image.isEmpty()) {
+                    _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran"))
                     _events.emit(RecordEvent.Idle)
                     return@launch
                 }
@@ -165,7 +172,6 @@ class RecordViewModel(
                     _events.emit(RecordEvent.Idle)
                     return@launch
                 }
-
                 val current = st.meteranText.filter(Char::isDigit).toLongOrNull()
                 if (current == null) {
                     _events.emit(RecordEvent.ShowSnackbar("Meteran tidak valid"))
@@ -177,15 +183,7 @@ class RecordViewModel(
                     _events.emit(RecordEvent.Idle)
                     return@launch
                 }
-
-                if (image == null || image.isEmpty()) {
-                    _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran"))
-                    _events.emit(RecordEvent.Idle)
-                    return@launch
-                }
-
                 _events.emit(RecordEvent.ShowLoading("Menyimpan Data"))
-
                 val fees: Map<String, Long> =
                     st.otherFees
                         .mapNotNull { f -> f.type?.let { it to (f.amount.toLongOrNull() ?: 0L) } }

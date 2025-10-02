@@ -51,6 +51,7 @@ import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -107,9 +108,7 @@ object RecordScreen : Screen {
         var expanded by remember { mutableStateOf(false) }
         val focusManager = LocalFocusManager.current
 
-        val tabNavigator = LocalTabNavigator.current
         val navigator = LocalNavigator.current
-        val prevKey = LocalPreviousTabKey.current.value
 
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
@@ -182,7 +181,7 @@ object RecordScreen : Screen {
             }
         )
 
-        StickyScaffold(bgBlue = bgBlue, textOnBg = textOnBg)
+        StickyScaffold(bgBlue = bgBlue, textOnBg = textOnBg, snackbarHostState)
         {
             Box(
                 modifier = Modifier
@@ -539,22 +538,7 @@ object RecordScreen : Screen {
 
                     Spacer(Modifier.height(8.dp))
                     Button(
-                        onClick = {
-                            val current = state.meteranText.filter(Char::isDigit).toLongOrNull()
-                            when {
-                                current == null -> scope.launch {
-                                    snackbarHostState.showSnackbar("Meteran tidak valid")
-                                }
-
-                                current < state.meterLalu.toLong() -> scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        "Meteran bulan ini tidak boleh lebih kecil dari bulan lalu (${state.meterLalu})"
-                                    )
-                                }
-
-                                else -> vm.saveRecord(image = image?.bytes)
-                            }
-                        },
+                        onClick = { vm.saveRecord(image = image?.bytes) },
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = green, contentColor = Color.White
@@ -587,6 +571,7 @@ object RecordScreen : Screen {
 fun StickyScaffold(
     bgBlue: Color,
     textOnBg: Color,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     content: @Composable () -> Unit
 ) {
     val tabNavigator = LocalTabNavigator.current
@@ -594,7 +579,9 @@ fun StickyScaffold(
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = bgBlue,
         topBar = {
             TopAppBar(

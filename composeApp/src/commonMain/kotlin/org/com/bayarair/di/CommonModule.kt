@@ -51,6 +51,7 @@ val commonModule =
                 get<AppEvents>(),
                 get<RecordHistoryShared>(),
                 get<UserShared>(),
+                get<StatsShared>()
             )
         }
         factory<SplashViewModel> { SplashViewModel(get<TokenHandler>()) }

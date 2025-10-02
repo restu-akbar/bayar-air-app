@@ -24,6 +24,7 @@ coil3 = "3.3.0"
 sqlite = "2.6.0"
 ksp = "2.2.20-2.0.2"
 room = "2.8.0"
+swiperefreshlayoutVersion = "1.1.0"
 voyager = "1.1.0-beta03"
 webView = "0.36.0"
 datetime = "0.7.1"
@@ -80,6 +81,7 @@ navigator-transitions = { module = "cafe.adriel.voyager:voyager-transitions", ve
 navigator-viewmodel = { module = "cafe.adriel.voyager:voyager-screenmodel", version.ref = "voyager" }
 navigator-koin = { module = "cafe.adriel.voyager:voyager-koin", version.ref = "voyager" }
 
+swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swiperefreshlayoutVersion" }
 webView = { module = "com.google.accompanist:accompanist-webview", version.ref = "webView" }
 
 datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }

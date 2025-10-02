@@ -571,7 +571,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
         totalCust.toFloat(),
         totalRecordByUser.toFloat()
     )
-    val labels = listOf("Pelanggan Tidak/Belum Tercatat", "Pelanggan Tercatat")
+    val labels = listOf("Belum tercatat oleh anda", "Pelanggan Tercatat oleh anda")
     val total = values.sum().coerceAtLeast(1f)
 
     val scheme = MaterialTheme.colorScheme

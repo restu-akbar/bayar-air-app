@@ -2,8 +2,6 @@ package org.com.bayarair.presentation.viewmodel
 
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.com.bayarair.core.AppEvent
@@ -24,6 +22,7 @@ class AuthViewModel(
     private val appEvents: AppEvents,
     private val historyShared: RecordHistoryShared,
     private val userShared: UserShared,
+    private val statsShared: StatsShared,
 ) : StateScreenModel<AuthState>(AuthState()) {
     fun onLoginChange(v: String) {
         mutableState.update { it.copy(login = v) }
@@ -68,6 +67,8 @@ class AuthViewModel(
     fun logout() {
         screenModelScope.launch {
             historyShared.clearHistory()
+            statsShared.clearBarChart()
+            statsShared.clearPieChart()
             userShared.clearUser()
 
             val result = authRepository.logout()

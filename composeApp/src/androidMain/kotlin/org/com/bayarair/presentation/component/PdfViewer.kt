@@ -1,15 +1,12 @@
 package org.com.bayarair.presentation.component
 
 import android.annotation.SuppressLint
-import android.graphics.Bitmap
+import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,54 +17,77 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.zIndex
-import androidx.core.view.ViewCompat
+import coil3.Bitmap
 
 @OptIn(ExperimentalMaterialApi::class)
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 actual fun PdfViewer(url: String, modifier: Modifier) {
-    var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
-    var webViewRef by remember { mutableStateOf<WebView?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
 
-    val pullRefreshState = rememberPullRefreshState(
-        refreshing = isRefreshing,
-        onRefresh = {
-            isRefreshing = true
-            webViewRef?.reload()
-        }
-    )
-
-    Box(
-        modifier = modifier.pullRefresh(pullRefreshState)
-    ) {
+    Box(modifier = modifier) {
         AndroidView(
             factory = { context ->
-                WebView(context).apply {
-                    webViewRef = this
-                    ViewCompat.setNestedScrollingEnabled(this, true)
-                    settings.javaScriptEnabled = true
-                    settings.mixedContentMode =
-                        android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                val swipe = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(context)
+                val web = WebView(context)
 
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                            super.onPageStarted(view, url, favicon)
-                            isLoading = true
-                        }
+                swipe.addView(
+                    web,
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                )
 
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            super.onPageFinished(view, url)
-                            isLoading = false
-                            if (isRefreshing) isRefreshing = false
+                web.setOnScrollChangeListener { _, _, _, _, _ ->
+                    swipe.isEnabled = !web.canScrollVertically(-1)
+                }
+
+                swipe.setOnRefreshListener {
+                    isRefreshing = true
+                    isLoading =
+                        true
+                    web.reload()
+                }
+
+                web.settings.javaScriptEnabled = true
+                web.settings.mixedContentMode =
+                    android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                web.webViewClient = object : WebViewClient() {
+                    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                        isLoading = true
+                    }
+
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        isLoading = false
+                        if (isRefreshing) {
+                            isRefreshing = false
+                            swipe.isRefreshing = false
                         }
                     }
 
-                    loadUrl("https://docs.google.com/viewer?embedded=true&url=$url")
+                    @Suppress("DEPRECATION")
+                    override fun onReceivedError(
+                        view: WebView?,
+                        errorCode: Int,
+                        description: String?,
+                        failingUrl: String?
+                    ) {
+                        isLoading = false
+                        if (isRefreshing) {
+                            isRefreshing = false
+                            swipe.isRefreshing = false
+                        }
+                    }
                 }
+
+                web.loadUrl("https://docs.google.com/viewer?embedded=true&url=$url")
+                swipe
             },
-            update = { webViewRef = it },
+            update = { swipe ->
+                swipe.isRefreshing = isRefreshing
+            },
             modifier = Modifier.matchParentSize()
         )
 
@@ -81,13 +101,5 @@ actual fun PdfViewer(url: String, modifier: Modifier) {
                 CircularProgressIndicator()
             }
         }
-
-        PullRefreshIndicator(
-            refreshing = isRefreshing,
-            state = pullRefreshState,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .zIndex(1f)
-        )
     }
 }

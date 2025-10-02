@@ -1,4 +1,3 @@
-import org.gradle.kotlin.dsl.implementation
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -58,6 +57,7 @@ kotlin {
                 implementation(libs.koin.androidx.compose)
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.androidx.room.runtime)
+                implementation(libs.swiperefreshlayout)
             }
         }
         val iosMain by getting {
