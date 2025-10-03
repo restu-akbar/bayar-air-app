@@ -566,15 +566,16 @@ private fun currentMonth(): Int {
 
 @Composable
 fun PieChartView(totalCust: Int, pieChart: PieChart) {
-    val totalRecordByUser = pieChart.total
+    val scheme = MaterialTheme.colorScheme
+
+    val totalRecordByUser = (pieChart.total ?: 0)
     val values = listOf(
-        totalCust.toFloat(),
+        (totalCust - totalRecordByUser).coerceAtLeast(0).toFloat(),
         totalRecordByUser.toFloat()
     )
-    val labels = listOf("Belum tercatat oleh anda", "Pelanggan Tercatat oleh anda")
-    val total = values.sum().coerceAtLeast(1f)
+    val labels = listOf("Tidak tercatat oleh anda", "Pelanggan tercatat oleh anda")
+    val total = values.sum().coerceAtLeast(0f)
 
-    val scheme = MaterialTheme.colorScheme
     val colors = listOf(
         Color(0xFF4773B4),
         scheme.primary,
@@ -595,8 +596,8 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
     var showTooltip by remember { mutableStateOf(false) }
 
     val formatter = remember { DecimalFormat("#.##") }
-    val valueChange: Float = (pieChart.persentase.toFloat())
 
+    val valueChange: Float = (pieChart.persentase.toFloat())
     val (icon, color) = when {
         valueChange > 0f -> Pair(Icons.Default.ArrowUpward, scheme.tertiaryContainer)
         valueChange < 0f -> Pair(Icons.Default.ArrowDownward, scheme.error)
@@ -606,7 +607,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(400.dp),
+            .height(390.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = scheme.primaryContainer),
         elevation = CardDefaults.cardElevation(4.dp)
@@ -622,6 +623,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                 modifier = Modifier.fillMaxWidth(0.9f)
             ) {
                 val diameter = minOf(maxWidth, 180.dp)
+
                 Box(
                     modifier = Modifier
                         .width(diameter)
@@ -647,11 +649,13 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                                             Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
                                                 .toFloat()
                                         if (angle < 0) angle += 360f
+
                                         var currentStart = 270f
                                         var foundIndex: Int? = null
                                         values.forEachIndexed { i, v ->
-                                            val sweep = 360f * (v / total) * progress.value
+                                            val sweep = 360f * (if (total == 0f) 0f else (v / total)) * progress.value
                                             val end = (currentStart + sweep) % 360f
+
                                             val inSlice = if (sweep <= 0.1f) {
                                                 false
                                             } else if (currentStart <= end) {
@@ -665,6 +669,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                                             }
                                             currentStart = (currentStart + sweep) % 360f
                                         }
+
                                         selectedIndex = foundIndex
                                         tapOffset = offset
                                         showTooltip = foundIndex != null
@@ -677,8 +682,10 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                     ) {
                         val ring = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Butt)
                         var startAngle = -90f
+
                         values.forEachIndexed { index, value ->
-                            val sweepAngle = 360f * (value / total) * progress.value
+                            val sweepAngle =
+                                360f * (if (total == 0f) 0f else (value / total)) * progress.value
 
                             val isSelected = selectedIndex == index
                             val drawRing = if (isSelected) {
@@ -693,6 +700,31 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                                 style = drawRing
                             )
                             startAngle += sweepAngle
+                        }
+                    }
+
+                    run {
+                        val recorded = totalRecordByUser.toFloat()
+                        val pctTarget = if (total <= 0f) 0f else (recorded / total) * 100f
+                        val shownPct = pctTarget * progress.value
+
+                        Box(
+                            modifier = Modifier.matchParentSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "${formatter.format(shownPct)}%",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = scheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "tercatat",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = scheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                )
+                            }
                         }
                     }
 
@@ -737,8 +769,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
             Spacer(Modifier.height(10.dp))
 
             Text(
-                text = DateUtils.months.firstOrNull { it.first == pieChart.bulan }?.second
-                    ?: "-",
+                text = DateUtils.months.firstOrNull { it.first == pieChart.bulan }?.second ?: "-",
                 style = MaterialTheme.typography.titleLarge,
                 color = scheme.onPrimaryContainer,
                 fontWeight = FontWeight.SemiBold,
