@@ -616,11 +616,11 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(30.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.Start
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth(0.9f)
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
                 val diameter = minOf(maxWidth, 180.dp)
 
@@ -628,6 +628,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                     modifier = Modifier
                         .width(diameter)
                         .aspectRatio(1f)
+                        .align(Alignment.Center)
                 ) box@{
                     Canvas(
                         modifier = Modifier
@@ -653,7 +654,8 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                                         var currentStart = 270f
                                         var foundIndex: Int? = null
                                         values.forEachIndexed { i, v ->
-                                            val sweep = 360f * (if (total == 0f) 0f else (v / total)) * progress.value
+                                            val sweep =
+                                                360f * (if (total == 0f) 0f else (v / total)) * progress.value
                                             val end = (currentStart + sweep) % 360f
 
                                             val inSlice = if (sweep <= 0.1f) {

@@ -25,11 +25,6 @@ actual fun createHttpClient(): HttpClient {
         engine {
             configureRequest { setAllowsCellularAccess(true) }
         }
-        install(HttpTimeout) {
-            requestTimeoutMillis = 30_000
-            connectTimeoutMillis = 30_000
-            socketTimeoutMillis = 30_000
-        }
         install(Logging) {
             logger = object : Logger {
                 override fun log(message: String) = println("[Ktor] $message")

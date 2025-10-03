@@ -43,4 +43,11 @@ suspend inline fun <reified T> HttpResponse.unwrapFlexible(): BaseResponse<T> {
     }
 }
 
+const val CODE_NETWORK_UNAVAILABLE = -1
+const val CODE_TIMEOUT = -2
+const val CODE_CANCELED = -4
+const val CODE_UNKNOWN = -999
+
+// Common: hanya definisi
+expect fun Throwable.asApiException(): ApiException
 fun Throwable.isUnauthorized(): Boolean = (this as? ApiException)?.code == 401

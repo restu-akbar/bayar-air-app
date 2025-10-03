@@ -3,14 +3,19 @@ package org.com.bayarair.platform
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.plugins.HttpResponseValidator
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.accept
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import org.com.bayarair.data.dto.ApiException
+import org.com.bayarair.data.dto.asApiException
+import org.com.bayarair.data.dto.extractErrorMessage
 
 typealias FastTokenProvider = () -> String?
 typealias SessionVersionProvider = () -> Int
@@ -37,6 +42,14 @@ fun installCommonPlugins(
         )
     }
 
+    install(HttpTimeout) {
+        requestTimeoutMillis = 30_000
+
+        connectTimeoutMillis = 10_000
+
+        socketTimeoutMillis = 30_000
+    }
+
     install(DefaultRequest) {
         contentType(ContentType.Application.Json)
         accept(ContentType.Application.Json)
@@ -52,6 +65,10 @@ fun installCommonPlugins(
 
     HttpResponseValidator {
         validateResponse { response ->
+            if (!response.status.isSuccess()) {
+                val msg = response.extractErrorMessage()
+                throw ApiException(response.status.value, msg) as Throwable
+            }
             if (response.status == HttpStatusCode.Unauthorized) {
                 val path =
                     "/" +
@@ -69,6 +86,9 @@ fun installCommonPlugins(
                     onUnauthorized()
                 }
             }
+        }
+        handleResponseExceptionWithRequest { cause, _ ->
+            throw cause.asApiException() as Throwable
         }
     }
 }

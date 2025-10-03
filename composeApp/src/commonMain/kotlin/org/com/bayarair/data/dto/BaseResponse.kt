@@ -18,4 +18,4 @@ data class ErrorResponse(
 class ApiException(
     val code: Int,
     override val message: String,
-) : Exception(message)
+) : RuntimeException(message)
