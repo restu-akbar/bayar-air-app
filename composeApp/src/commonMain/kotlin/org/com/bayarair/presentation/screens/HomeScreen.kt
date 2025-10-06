@@ -469,7 +469,9 @@ fun ChartSwitcher(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
-            contentAlignment = if (pieChart == null && barChart == null) {
+            contentAlignment = if (pieChart == null && graph) {
+                Alignment.Center
+            } else if (barChart == null && !graph) {
                 Alignment.Center
             } else {
                 Alignment.TopCenter
@@ -649,44 +651,27 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                                         var found: Int? = null
 
                                         if (distance in innerRadius..outerRadius) {
-                                            // Hitung sudut dari posisi klik (0° = kanan, 90° = bawah)
                                             var tapAngle =
                                                 Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
                                                     .toFloat()
                                             if (tapAngle < 0f) tapAngle += 360f
 
-                                            // Normalisasi ke sistem drawing (-90° = atas)
-                                            // Drawing mulai dari -90°, jadi offset 90° untuk konversi
                                             var normalizedAngle = (tapAngle + 90f) % 360f
 
                                             val totalSafe = if (total <= 0f) 1f else total
-
-                                            // DEBUG: Print untuk debugging
-                                            println("=== TAP DEBUG ===")
-                                            println("Tap pos: $pos")
-                                            println("tapAngle: $tapAngle")
-                                            println("normalizedAngle: $normalizedAngle")
-                                            println("Values: $values")
-
                                             var currentAngle = 0f
                                             for (i in values.indices) {
                                                 val v = values[i]
                                                 val sweepAngle = 360f * (v / totalSafe)
                                                 val endAngle = currentAngle + sweepAngle
 
-                                                println("Slice $i (${labels[i]}): ${currentAngle}° - ${endAngle}° (sweep: ${sweepAngle}°)")
-
-                                                // Cek apakah tap ada di range slice ini
                                                 if (sweepAngle > 0.0001f && normalizedAngle >= currentAngle && normalizedAngle < endAngle) {
                                                     found = i
-                                                    println("✓ FOUND: Slice $i")
-                                                    break  // PENTING: Break agar tidak override
+                                                    break
                                                 }
 
                                                 currentAngle = endAngle
                                             }
-                                            println("Final found: $found")
-                                            println("===============")
                                         }
 
                                         if (found != null) {
