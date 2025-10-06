@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -109,7 +110,6 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.log10
-import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.time.Clock
@@ -567,22 +567,26 @@ private fun currentMonth(): Int {
 @Composable
 fun PieChartView(totalCust: Int, pieChart: PieChart) {
     val scheme = MaterialTheme.colorScheme
-
-    val totalRecordByUser = (pieChart.total ?: 0)
+    val recordedByUser = (pieChart.totalUser).coerceAtLeast(0)
+    val recordedByOthers = (pieChart.totalUserLain).coerceAtLeast(0)
+    val remaining = (totalCust - recordedByUser - recordedByOthers).coerceAtLeast(0)
     val values = listOf(
-        (totalCust - totalRecordByUser).coerceAtLeast(0).toFloat(),
-        totalRecordByUser.toFloat()
+        recordedByUser.toFloat(),
+        recordedByOthers.toFloat(),
+        remaining.toFloat()
     )
-    val labels = listOf("Tidak tercatat oleh anda", "Pelanggan tercatat oleh anda")
+    val labels = listOf(
+        "Pelanggan tercatat oleh anda",
+        "Pelanggan tercatat oleh petugas lain",
+        "Belum tercatat"
+    )
     val total = values.sum().coerceAtLeast(0f)
-
     val colors = listOf(
-        Color(0xFF4773B4),
-        scheme.primary,
+        Color(0xFF0D47A1),
+        Color(0xFF1565C0),
+        Color(0xFF64B5F6),
     )
-
     val strokeWidth = 16.dp
-
     val progress = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         progress.animateTo(
@@ -590,20 +594,16 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
             animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing)
         )
     }
-
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     var tapOffset by remember { mutableStateOf(Offset.Zero) }
     var showTooltip by remember { mutableStateOf(false) }
-
     val formatter = remember { DecimalFormat("#.##") }
-
     val valueChange: Float = (pieChart.persentase.toFloat())
     val (icon, color) = when {
         valueChange > 0f -> Pair(Icons.Default.ArrowUpward, scheme.tertiaryContainer)
         valueChange < 0f -> Pair(Icons.Default.ArrowDownward, scheme.error)
         else -> Pair(Icons.Default.Remove, Color.Gray)
     }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -623,7 +623,6 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                 contentAlignment = Alignment.Center
             ) {
                 val diameter = minOf(maxWidth, 180.dp)
-
                 Box(
                     modifier = Modifier
                         .width(diameter)
@@ -633,67 +632,86 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                     Canvas(
                         modifier = Modifier
                             .matchParentSize()
-                            .pointerInput(values, total) {
-                                detectTapGestures { offset ->
-                                    val sizePx = this.size
-                                    val center = Offset(sizePx.width / 2f, sizePx.height / 2f)
-                                    val dx = offset.x - center.x
-                                    val dy = offset.y - center.y
-                                    val distance = hypot(dx, dy)
+                            .pointerInput(values, total, strokeWidth) {
+                                val scope = this
+                                detectTapGestures(
+                                    onPress = { pos ->
+                                        val sizePx = scope.size
+                                        val center = Offset(sizePx.width / 2f, sizePx.height / 2f)
+                                        val dx = pos.x - center.x
+                                        val dy = pos.y - center.y
+                                        val distance = hypot(dx, dy)
+                                        val R = kotlin.math.min(sizePx.width, sizePx.height) / 2f
+                                        val ringPx = with(scope) { strokeWidth.toPx() }
 
-                                    val outerRadius = min(sizePx.width, sizePx.height) / 2f
-                                    val ringPx = with(this) { strokeWidth.toPx() }
-                                    val innerRadius = outerRadius - ringPx
+                                        val innerRadius = kotlin.math.max(0f, R - 1.5f * ringPx)
+                                        val outerRadius = R + 0.5f * ringPx
+                                        var found: Int? = null
 
-                                    if (distance in innerRadius..outerRadius) {
-                                        var angle =
-                                            Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
-                                                .toFloat()
-                                        if (angle < 0) angle += 360f
+                                        if (distance in innerRadius..outerRadius) {
+                                            // Hitung sudut dari posisi klik (0° = kanan, 90° = bawah)
+                                            var tapAngle =
+                                                Math.toDegrees(atan2(dy.toDouble(), dx.toDouble()))
+                                                    .toFloat()
+                                            if (tapAngle < 0f) tapAngle += 360f
 
-                                        var currentStart = 270f
-                                        var foundIndex: Int? = null
-                                        values.forEachIndexed { i, v ->
-                                            val sweep =
-                                                360f * (if (total == 0f) 0f else (v / total)) * progress.value
-                                            val end = (currentStart + sweep) % 360f
+                                            // Normalisasi ke sistem drawing (-90° = atas)
+                                            // Drawing mulai dari -90°, jadi offset 90° untuk konversi
+                                            var normalizedAngle = (tapAngle + 90f) % 360f
 
-                                            val inSlice = if (sweep <= 0.1f) {
-                                                false
-                                            } else if (currentStart <= end) {
-                                                angle in currentStart..end
-                                            } else {
-                                                angle >= currentStart || angle <= end
+                                            val totalSafe = if (total <= 0f) 1f else total
+
+                                            // DEBUG: Print untuk debugging
+                                            println("=== TAP DEBUG ===")
+                                            println("Tap pos: $pos")
+                                            println("tapAngle: $tapAngle")
+                                            println("normalizedAngle: $normalizedAngle")
+                                            println("Values: $values")
+
+                                            var currentAngle = 0f
+                                            for (i in values.indices) {
+                                                val v = values[i]
+                                                val sweepAngle = 360f * (v / totalSafe)
+                                                val endAngle = currentAngle + sweepAngle
+
+                                                println("Slice $i (${labels[i]}): ${currentAngle}° - ${endAngle}° (sweep: ${sweepAngle}°)")
+
+                                                // Cek apakah tap ada di range slice ini
+                                                if (sweepAngle > 0.0001f && normalizedAngle >= currentAngle && normalizedAngle < endAngle) {
+                                                    found = i
+                                                    println("✓ FOUND: Slice $i")
+                                                    break  // PENTING: Break agar tidak override
+                                                }
+
+                                                currentAngle = endAngle
                                             }
-                                            if (inSlice) {
-                                                foundIndex = i
-                                                return@forEachIndexed
-                                            }
-                                            currentStart = (currentStart + sweep) % 360f
+                                            println("Final found: $found")
+                                            println("===============")
                                         }
 
-                                        selectedIndex = foundIndex
-                                        tapOffset = offset
-                                        showTooltip = foundIndex != null
-                                    } else {
-                                        showTooltip = false
-                                        selectedIndex = null
-                                    }
-                                }
+                                        if (found != null) {
+                                            selectedIndex = found
+                                            tapOffset = pos
+                                            showTooltip = true
+                                        } else {
+                                            showTooltip = false
+                                            selectedIndex = null
+                                        }
+                                        tryAwaitRelease()
+                                    },
+                                    onTap = { /* no-op */ }
+                                )
                             }
                     ) {
                         val ring = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Butt)
                         var startAngle = -90f
-
                         values.forEachIndexed { index, value ->
                             val sweepAngle =
                                 360f * (if (total == 0f) 0f else (value / total)) * progress.value
-
                             val isSelected = selectedIndex == index
                             val drawRing = if (isSelected) {
                                 Stroke(width = ring.width * 1.25f, cap = StrokeCap.Butt)
                             } else ring
-
                             drawArc(
                                 color = colors.getOrElse(index) { scheme.secondary },
                                 startAngle = startAngle,
@@ -704,12 +722,9 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                             startAngle += sweepAngle
                         }
                     }
-
                     run {
-                        val recorded = totalRecordByUser.toFloat()
-                        val pctTarget = if (total <= 0f) 0f else (recorded / total) * 100f
+                        val pctTarget = if (total <= 0f) 0f else (remaining / total) * 100f
                         val shownPct = pctTarget * progress.value
-
                         Box(
                             modifier = Modifier.matchParentSize(),
                             contentAlignment = Alignment.Center
@@ -722,72 +737,103 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                                     color = scheme.onPrimaryContainer
                                 )
                                 Text(
-                                    text = "tercatat",
+                                    text = "pelanggan belum tercatat",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = scheme.onPrimaryContainer.copy(alpha = 0.7f)
                                 )
                             }
                         }
                     }
-
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = showTooltip && selectedIndex != null,
-                        enter = fadeIn() + scaleIn(),
-                        exit = fadeOut()
-                    ) {
+                    if (showTooltip && selectedIndex != null) {
                         val idx = selectedIndex ?: 0
                         val v = values[idx]
                         val pct = if (total == 0f) 0f else (v / total) * 100f
                         val tipText =
                             "${labels[idx]}: ${formatter.format(v)} (${formatter.format(pct)}%)"
 
-                        Box(
-                            modifier = Modifier
-                                .offset {
-                                    IntOffset(
-                                        x = tapOffset.x.roundToInt() - 40,
-                                        y = tapOffset.y.roundToInt() - 56
+                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                            val density = LocalDensity.current
+
+                            // Ukur lebar tooltip (estimasi)
+                            val tooltipWidthPx = with(density) { 200.dp.toPx() }
+                            val tooltipHeightPx = with(density) { 50.dp.toPx() }
+
+                            val maxWidthPx = with(density) { maxWidth.toPx() }
+                            val maxHeightPx = with(density) { maxHeight.toPx() }
+
+                            // Hitung posisi dengan boundary check
+                            var offsetX = tapOffset.x - (tooltipWidthPx / 2)
+                            var offsetY = tapOffset.y - tooltipHeightPx - 32f
+
+                            // Cek batas kiri
+                            if (offsetX < 16f) {
+                                offsetX = 16f
+                            }
+                            // Cek batas kanan
+                            if (offsetX + tooltipWidthPx > maxWidthPx - 16f) {
+                                offsetX = maxWidthPx - tooltipWidthPx - 16f
+                            }
+                            // Cek batas atas
+                            if (offsetY < 16f) {
+                                offsetY =
+                                    tapOffset.y + 32f // Tampilkan di bawah jika tidak muat di atas
+                            }
+                            // Cek batas bawah
+                            if (offsetY + tooltipHeightPx > maxHeightPx - 16f) {
+                                offsetY = maxHeightPx - tooltipHeightPx - 16f
+                            }
+
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = true,
+                                enter = fadeIn() + scaleIn(),
+                                exit = fadeOut()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .offset {
+                                            IntOffset(
+                                                x = offsetX.roundToInt(),
+                                                y = offsetY.roundToInt()
+                                            )
+                                        }
+                                        .widthIn(max = 200.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(scheme.surface)
+                                        .border(
+                                            1.dp,
+                                            scheme.outline.copy(alpha = 0.3f),
+                                            RoundedCornerShape(8.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = tipText,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = scheme.onSurface
                                     )
                                 }
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(scheme.surface)
-                                .border(
-                                    1.dp,
-                                    scheme.outline.copy(alpha = 0.3f),
-                                    RoundedCornerShape(8.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = tipText,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = scheme.onSurface
-                            )
+                            }
                         }
                     }
                 }
             }
-
             Spacer(Modifier.height(10.dp))
-
             Text(
                 text = DateUtils.months.firstOrNull { it.first == pieChart.bulan }?.second ?: "-",
                 style = MaterialTheme.typography.titleLarge,
                 color = scheme.onPrimaryContainer,
                 fontWeight = FontWeight.SemiBold,
             )
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "${pieChart.total ?: 0}",
+                    text = "$recordedByUser",
                     style = MaterialTheme.typography.headlineLarge,
                     color = scheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold,
                 )
-
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -812,9 +858,8 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                     )
                 }
             }
-
             Text(
-                text = "Pelanggan Tercatat",
+                text = "Pelanggan Tercatat oleh anda",
                 style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onPrimaryContainer
             )
