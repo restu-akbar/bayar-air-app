@@ -578,15 +578,15 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
         remaining.toFloat()
     )
     val labels = listOf(
-        "Pelanggan tercatat oleh anda",
-        "Pelanggan tercatat oleh petugas lain",
-        "Belum tercatat"
+        "tercatat oleh anda",
+        "tercatat oleh petugas lain",
+        "belum tercatat"
     )
     val total = values.sum().coerceAtLeast(0f)
     val colors = listOf(
         Color(0xFF0D47A1),
         Color(0xFF1565C0),
-        Color(0xFF64B5F6),
+        Color(0xFF1E88E5),
     )
     val strokeWidth = 16.dp
     val progress = remember { Animatable(0f) }
@@ -656,7 +656,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                                                     .toFloat()
                                             if (tapAngle < 0f) tapAngle += 360f
 
-                                            var normalizedAngle = (tapAngle + 90f) % 360f
+                                            val normalizedAngle = (tapAngle + 90f) % 360f
 
                                             val totalSafe = if (total <= 0f) 1f else total
                                             var currentAngle = 0f
@@ -708,7 +708,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                         }
                     }
                     run {
-                        val pctTarget = if (total <= 0f) 0f else (remaining / total) * 100f
+                        val pctTarget = if (total <= 0) 0 else remaining
                         val shownPct = pctTarget * progress.value
                         Box(
                             modifier = Modifier.matchParentSize(),
@@ -716,7 +716,7 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = "${formatter.format(shownPct)}%",
+                                    text = formatter.format(shownPct),
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = scheme.onPrimaryContainer
@@ -734,36 +734,30 @@ fun PieChartView(totalCust: Int, pieChart: PieChart) {
                         val v = values[idx]
                         val pct = if (total == 0f) 0f else (v / total) * 100f
                         val tipText =
-                            "${labels[idx]}: ${formatter.format(v)} (${formatter.format(pct)}%)"
+                            "${formatter.format(v)} pelanggan ${labels[idx]} (${formatter.format(pct)}%)"
 
                         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                             val density = LocalDensity.current
 
-                            // Ukur lebar tooltip (estimasi)
                             val tooltipWidthPx = with(density) { 200.dp.toPx() }
                             val tooltipHeightPx = with(density) { 50.dp.toPx() }
 
                             val maxWidthPx = with(density) { maxWidth.toPx() }
                             val maxHeightPx = with(density) { maxHeight.toPx() }
 
-                            // Hitung posisi dengan boundary check
                             var offsetX = tapOffset.x - (tooltipWidthPx / 2)
                             var offsetY = tapOffset.y - tooltipHeightPx - 32f
 
-                            // Cek batas kiri
                             if (offsetX < 16f) {
                                 offsetX = 16f
                             }
-                            // Cek batas kanan
                             if (offsetX + tooltipWidthPx > maxWidthPx - 16f) {
                                 offsetX = maxWidthPx - tooltipWidthPx - 16f
                             }
-                            // Cek batas atas
                             if (offsetY < 16f) {
                                 offsetY =
-                                    tapOffset.y + 32f // Tampilkan di bawah jika tidak muat di atas
+                                    tapOffset.y + 32f
                             }
-                            // Cek batas bawah
                             if (offsetY + tooltipHeightPx > maxHeightPx - 16f) {
                                 offsetY = maxHeightPx - tooltipHeightPx - 16f
                             }
@@ -879,7 +873,7 @@ fun BarChartView(totalCust: Int, barChart: BarChart) {
         listOf("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Des")
 
     val barsData: List<Bars> = remember(barChart) {
-        val src = barChart.data.orEmpty()
+        val src = barChart.data
         val totalsByLabel = src
             .groupBy { normalizeMonthLabel(it.bulan) }
             .mapValues { (_, items) -> items.sumOf { it.total.toDouble() } }

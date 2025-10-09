@@ -2,7 +2,6 @@
 
 package org.com.bayarair.presentation.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,9 +32,6 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Upload
-import androidx.compose.material.pullrefresh.PullRefreshIndicator
-import androidx.compose.material.pullrefresh.pullRefresh
-import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
@@ -56,6 +52,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -107,20 +104,16 @@ object RecordScreen : Screen {
         val state by vm.state.collectAsState()
         var expanded by remember { mutableStateOf(false) }
         val focusManager = LocalFocusManager.current
-
         val navigator = LocalNavigator.current
 
         val snackbarHostState = remember { SnackbarHostState() }
         val scope = rememberCoroutineScope()
 
-        var showFullLoading by remember { mutableStateOf(false) }
-        var loadMessage by remember { mutableStateOf("") }
-
         val imageGateway = rememberImageGateway()
         var image by remember { mutableStateOf<PickResult?>(null) }
         val imageBitmap: ImageBitmap? = remember(image) { image?.let { decodeImage(it.bytes) } }
 
-        LaunchedEffect(Unit) { vm.load(minMs = 1000).join() }
+        LaunchedEffect(Unit) { vm.load() }
 
         LaunchedEffect(Unit) {
             vm.events.collect { ev ->
@@ -131,12 +124,6 @@ object RecordScreen : Screen {
                         navigator?.root()?.push(RecordDetailScreen(ev.url, ev.recordId, false))
                     }
 
-                    is RecordEvent.ShowLoading -> {
-                        showFullLoading = true
-                        loadMessage = ev.message
-                    }
-
-                    is RecordEvent.Idle -> showFullLoading = false
                 }
             }
         }
@@ -169,399 +156,399 @@ object RecordScreen : Screen {
         val formBg = MaterialTheme.colorScheme.primaryContainer
         val textOnBg = MaterialTheme.colorScheme.onBackground
 
-        var isRefreshing by remember { mutableStateOf(false) }
-        val pullState = rememberPullRefreshState(
-            refreshing = isRefreshing,
-            onRefresh = {
-                scope.launch {
-                    isRefreshing = true
-                    vm.load(minMs = 500).join()
-                    isRefreshing = false
-                }
-            }
-        )
-
         StickyScaffold(bgBlue = bgBlue, textOnBg = textOnBg, snackbarHostState)
         {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pullRefresh(pullState)
-            ) {
-                Column(
+            if (!state.isLoading) {
+                Box(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp)
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "Catat Air!",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = textOnBg,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 10.dp)
-                    )
-
-                    // ====== Pelanggan (dropdown) ======
-                    Text("Pelanggan", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-
-                    ExposedDropdownMenuBox(
-                        expanded = expanded,
-                        onExpandedChange = { expanded = !expanded }
+                    PullToRefreshBox(
+                        isRefreshing = state.isLoading,
+                        onRefresh = { vm.load() }
                     ) {
-                        OutlinedTextField(
-                            value = state.searchText,
-                            onValueChange = {
-                                vm.setSearchText(it)
-                                if (!expanded) expanded = true
-                            },
-                            singleLine = true,
-                            placeholder = { Text("Cari nama pelanggan…") },
-                            shape = RoundedCornerShape(4.dp),
+                        Column(
                             modifier = Modifier
-                                .menuAnchor(MenuAnchorType.PrimaryEditable)
-                                .fillMaxWidth(),
-                            trailingIcon = {
-                                Row(
-                                    modifier = Modifier.width(96.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.End
-                                ) {
-                                    if (state.searchText.isNotEmpty()) {
-                                        IconButton(
-                                            onClick = {
-                                                vm.clearCustomer()
-                                                expanded = false
-                                                focusManager.clearFocus()
-                                            }
+                                .padding(horizontal = 16.dp)
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+
+                            Text(
+                                text = "Catat Air!",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = textOnBg,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 10.dp)
+                            )
+
+                            // ====== Pelanggan (dropdown) ======
+                            Text(
+                                "Pelanggan",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textOnBg
+                            )
+
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded }
+                            ) {
+                                OutlinedTextField(
+                                    value = state.searchText,
+                                    onValueChange = {
+                                        vm.setSearchText(it)
+                                        if (!expanded) expanded = true
+                                    },
+                                    singleLine = true,
+                                    placeholder = { Text("Cari nama pelanggan…") },
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier
+                                        .menuAnchor(MenuAnchorType.PrimaryEditable)
+                                        .fillMaxWidth(),
+                                    trailingIcon = {
+                                        Row(
+                                            modifier = Modifier.width(96.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.End
                                         ) {
-                                            Icon(
-                                                Icons.Outlined.Close,
-                                                contentDescription = "Clear"
+                                            if (state.searchText.isNotEmpty()) {
+                                                IconButton(
+                                                    onClick = {
+                                                        vm.clearCustomer()
+                                                        expanded = false
+                                                        focusManager.clearFocus()
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        Icons.Outlined.Close,
+                                                        contentDescription = "Clear"
+                                                    )
+                                                }
+                                            } else {
+                                                Spacer(Modifier.size(60.dp))
+                                            }
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                        }
+                                    },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedContainerColor = formBg,
+                                        unfocusedContainerColor = formBg,
+                                        disabledContainerColor = formBg,
+                                        focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        focusedBorderColor = formBg,
+                                        unfocusedBorderColor = formBg,
+                                        disabledBorderColor = formBg,
+                                        cursorColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                )
+
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false }
+                                ) {
+                                    val items = state.filteredCustomers
+                                    if (items.isEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("Tidak ada pelanggan yang belum tercatat bulan ini") },
+                                            onClick = {},
+                                            enabled = false
+                                        )
+                                    } else {
+                                        items.forEach { c ->
+                                            DropdownMenuItem(
+                                                text = { Text(c.name) },
+                                                onClick = {
+                                                    vm.selectCustomer(c.id)
+                                                    expanded = false
+                                                    focusManager.clearFocus()
+                                                }
                                             )
                                         }
-                                    } else {
-                                        Spacer(Modifier.size(60.dp))
                                     }
-                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                                 }
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = formBg,
-                                unfocusedContainerColor = formBg,
-                                disabledContainerColor = formBg,
-                                focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                focusedBorderColor = formBg,
-                                unfocusedBorderColor = formBg,
-                                disabledBorderColor = formBg,
-                                cursorColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        )
+                            }
 
-                        ExposedDropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false }
-                        ) {
-                            val items = state.filteredCustomers
-                            if (items.isEmpty()) {
-                                DropdownMenuItem(
-                                    text = { Text("Tidak ada pelanggan yang belum tercatat bulan ini") },
-                                    onClick = {},
-                                    enabled = false
+                            // ====== Alamat (disabled) ======
+                            Text(
+                                "Alamat",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textOnBg
+                            )
+                            OutlinedTextField(
+                                value = state.alamat,
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                singleLine = false,
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = formBg,
+                                    unfocusedContainerColor = formBg,
+                                    disabledContainerColor = Color.LightGray,
+                                    focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                        alpha = 0.6f
+                                    ),
+                                    focusedBorderColor = formBg,
+                                    unfocusedBorderColor = formBg,
+                                    disabledBorderColor = Color.LightGray,
                                 )
-                            } else {
-                                items.forEach { c ->
-                                    DropdownMenuItem(
-                                        text = { Text(c.name) },
-                                        onClick = {
-                                            vm.selectCustomer(c.id)
-                                            expanded = false
-                                            focusManager.clearFocus()
-                                        }
+                            )
+
+                            // ====== Nomor HP (disabled) ======
+                            Text(
+                                "Nomor HP",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textOnBg
+                            )
+                            OutlinedTextField(
+                                value = state.hp,
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = formBg,
+                                    unfocusedContainerColor = formBg,
+                                    disabledContainerColor = Color.LightGray,
+                                    focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                        alpha = 0.6f
+                                    ),
+                                    focusedBorderColor = formBg,
+                                    unfocusedBorderColor = formBg,
+                                    disabledBorderColor = Color.LightGray,
+                                )
+                            )
+
+                            // ====== Meteran Bulan Lalu (disabled) ======
+                            Text(
+                                "Meteran Bulan Lalu",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textOnBg
+                            )
+                            OutlinedTextField(
+                                value = state.meterLalu.toString(),
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = formBg,
+                                    unfocusedContainerColor = formBg,
+                                    disabledContainerColor = Color.LightGray,
+                                    focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                        alpha = 0.6f
+                                    ),
+                                    focusedBorderColor = formBg,
+                                    unfocusedBorderColor = formBg,
+                                    disabledBorderColor = Color.LightGray,
+                                )
+                            )
+
+                            // ====== Foto Meteran Bulan Ini ======
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                "Foto Meteran Bulan Ini",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textOnBg
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(formBg)
+                                    .border(1.dp, Color.LightGray, RoundedCornerShape(4.dp))
+                                    .clickable { onOpenCamera() }
+                                    .then(
+                                        if (imageBitmap != null) Modifier.heightIn(max = 400.dp)
+                                        else Modifier.height(230.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (imageBitmap == null) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.PhotoCamera,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        Text(
+                                            "Ketuk untuk ambil foto",
+                                            color = MaterialTheme.colorScheme.secondary,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                } else {
+                                    Image(
+                                        bitmap = imageBitmap,
+                                        contentDescription = "Foto",
+                                        contentScale = ContentScale.Fit,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .wrapContentHeight()
                                     )
                                 }
                             }
-                        }
-                    }
-
-                    // ====== Alamat (disabled) ======
-                    Text("Alamat", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-                    OutlinedTextField(
-                        value = state.alamat,
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = false,
-                        singleLine = false,
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = formBg,
-                            unfocusedContainerColor = formBg,
-                            disabledContainerColor = Color.LightGray,
-                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
-                                alpha = 0.6f
-                            ),
-                            focusedBorderColor = formBg,
-                            unfocusedBorderColor = formBg,
-                            disabledBorderColor = Color.LightGray,
-                        )
-                    )
-
-                    // ====== Nomor HP (disabled) ======
-                    Text("Nomor HP", style = MaterialTheme.typography.labelLarge, color = textOnBg)
-                    OutlinedTextField(
-                        value = state.hp,
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = false,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = formBg,
-                            unfocusedContainerColor = formBg,
-                            disabledContainerColor = Color.LightGray,
-                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
-                                alpha = 0.6f
-                            ),
-                            focusedBorderColor = formBg,
-                            unfocusedBorderColor = formBg,
-                            disabledBorderColor = Color.LightGray,
-                        )
-                    )
-
-                    // ====== Meteran Bulan Lalu (disabled) ======
-                    Text(
-                        "Meteran Bulan Lalu",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = textOnBg
-                    )
-                    OutlinedTextField(
-                        value = state.meterLalu.toString(),
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = false,
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = formBg,
-                            unfocusedContainerColor = formBg,
-                            disabledContainerColor = Color.LightGray,
-                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
-                                alpha = 0.6f
-                            ),
-                            focusedBorderColor = formBg,
-                            unfocusedBorderColor = formBg,
-                            disabledBorderColor = Color.LightGray,
-                        )
-                    )
-
-                    // ====== Foto Meteran Bulan Ini ======
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        "Foto Meteran Bulan Ini",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = textOnBg
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(formBg)
-                            .border(1.dp, Color.LightGray, RoundedCornerShape(4.dp))
-                            .clickable { onOpenCamera() }
-                            .then(
-                                if (imageBitmap != null) Modifier.heightIn(max = 400.dp)
-                                else Modifier.height(230.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (imageBitmap == null) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Outlined.PhotoCamera,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.size(40.dp)
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    "Ketuk untuk ambil foto",
-                                    color = MaterialTheme.colorScheme.secondary,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            }
-                        } else {
-                            Image(
-                                bitmap = imageBitmap,
-                                contentDescription = "Foto",
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .wrapContentHeight()
-                            )
-                        }
-                    }
 
 
-                    // Upload dari galeri
-                    FilledTonalButton(
-                        onClick = { onPickFromGallery() },
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    ) {
-                        Icon(Icons.Outlined.Upload, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Upload file dari galeri")
-                    }
-
-                    // ====== Meteran Bulan Ini ======
-                    Text(
-                        "Meteran Bulan Ini",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = textOnBg
-                    )
-                    OutlinedTextField(
-                        value = state.meteranText,
-                        onValueChange = { vm.setMeteranText(it) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        enabled = state.selectedCustomerId.isNotBlank(),
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = formBg,
-                            unfocusedContainerColor = formBg,
-                            disabledContainerColor = Color.LightGray,
-                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
-                                alpha = 0.6f
-                            ),
-                            focusedBorderColor = formBg,
-                            unfocusedBorderColor = formBg,
-                            disabledBorderColor = Color.LightGray,
-                        )
-                    )
-
-                    // ====== Biaya Lain-lain ======
-                    AnimatedVisibility(visible = state.meteranText.isNotBlank()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(
-                                "Biaya Lain-lain (opsional)",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = textOnBg
-                            )
+                            // Upload dari galeri
                             FilledTonalButton(
-                                onClick = { vm.addOtherFee() },
-                                modifier = Modifier.fillMaxWidth(),
+                                onClick = { onPickFromGallery() },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             ) {
-                                Icon(Icons.Outlined.Add, contentDescription = null)
+                                Icon(Icons.Outlined.Upload, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Tambah Biaya")
+                                Text("Upload file dari galeri")
                             }
 
-                            state.otherFees.forEachIndexed { index, item ->
-                                BiayaItemRow(
-                                    index = index,
-                                    fee = item,
-                                    typeOptions = state.typeOptions,
-                                    usedTypes = state.usedTypes,
-                                    onTypeChange = { newType ->
-                                        vm.updateFeeType(
-                                            item.id,
-                                            newType
+                            // ====== Meteran Bulan Ini ======
+                            Text(
+                                "Meteran Bulan Ini",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textOnBg
+                            )
+                            OutlinedTextField(
+                                value = state.meteranText,
+                                onValueChange = { vm.setMeteranText(it) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                enabled = state.selectedCustomerId.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = formBg,
+                                    unfocusedContainerColor = formBg,
+                                    disabledContainerColor = Color.LightGray,
+                                    focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                        alpha = 0.6f
+                                    ),
+                                    focusedBorderColor = formBg,
+                                    unfocusedBorderColor = formBg,
+                                    disabledBorderColor = Color.LightGray,
+                                )
+                            )
+
+                            // ====== Biaya Lain-lain ======
+                            androidx.compose.animation.AnimatedVisibility(visible = state.meteranText.isNotBlank()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Text(
+                                        "Biaya Lain-lain (opsional)",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = textOnBg
+                                    )
+                                    FilledTonalButton(
+                                        onClick = { vm.addOtherFee() },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                         )
-                                    },
-                                    onAmountChange = { digits ->
-                                        vm.updateFeeAmount(
-                                            item.id,
-                                            digits
+                                    ) {
+                                        Icon(Icons.Outlined.Add, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Tambah Biaya")
+                                    }
+
+                                    state.otherFees.forEachIndexed { index, item ->
+                                        BiayaItemRow(
+                                            index = index,
+                                            fee = item,
+                                            typeOptions = state.typeOptions,
+                                            usedTypes = state.usedTypes,
+                                            onTypeChange = { newType ->
+                                                vm.updateFeeType(
+                                                    item.id,
+                                                    newType
+                                                )
+                                            },
+                                            onAmountChange = { digits ->
+                                                vm.updateFeeAmount(
+                                                    item.id,
+                                                    digits
+                                                )
+                                            },
+                                            onRemove = { vm.removeFee(item.id) },
+                                            formBg = formBg
                                         )
-                                    },
-                                    onRemove = { vm.removeFee(item.id) },
-                                    formBg = formBg
+                                    }
+                                }
+                            }
+
+                            // ====== Total ======
+                            Text(
+                                "Total Harga Bayar",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = textOnBg
+                            )
+                            OutlinedTextField(
+                                value = formatRupiah(state.totalBayar),
+                                onValueChange = {},
+                                readOnly = true,
+                                enabled = false,
+                                singleLine = true,
+                                shape = RoundedCornerShape(4.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedContainerColor = formBg,
+                                    unfocusedContainerColor = formBg,
+                                    disabledContainerColor = Color.LightGray,
+                                    focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                                        alpha = 0.8f
+                                    ),
+                                    focusedBorderColor = formBg,
+                                    unfocusedBorderColor = formBg,
+                                    disabledBorderColor = Color.LightGray
+                                )
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { vm.saveRecord(image = image?.bytes) },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = green, contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    "Simpan",
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
+
+                            Spacer(Modifier.height(24.dp))
                         }
                     }
-
-                    // ====== Total ======
-                    Text(
-                        "Total Harga Bayar",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = textOnBg
-                    )
-                    OutlinedTextField(
-                        value = formatRupiah(state.totalBayar),
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = false,
-                        singleLine = true,
-                        shape = RoundedCornerShape(4.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = formBg,
-                            unfocusedContainerColor = formBg,
-                            disabledContainerColor = Color.LightGray,
-                            focusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            disabledTextColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(
-                                alpha = 0.8f
-                            ),
-                            focusedBorderColor = formBg,
-                            unfocusedBorderColor = formBg,
-                            disabledBorderColor = Color.LightGray
-                        )
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-                    Button(
-                        onClick = { vm.saveRecord(image = image?.bytes) },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = green, contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            if (state.isLoading) "Menyimpan..." else "Simpan",
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Spacer(Modifier.height(24.dp))
                 }
-                if (showFullLoading) {
-                    LoadingOverlay(loadMessage)
-                } else {
-                    PullRefreshIndicator(
-                        refreshing = isRefreshing,
-                        state = pullState,
-                        modifier = Modifier.align(Alignment.TopCenter)
-                    )
-                }
+            } else {
+                LoadingOverlay(state.loadingMessage)
             }
         }
     }

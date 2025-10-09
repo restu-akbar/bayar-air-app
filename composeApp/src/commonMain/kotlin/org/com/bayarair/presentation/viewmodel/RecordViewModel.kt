@@ -2,7 +2,6 @@ package org.com.bayarair.presentation.viewmodel
 
 import cafe.adriel.voyager.core.model.StateScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -22,60 +21,48 @@ class RecordViewModel(
     private val _events = MutableSharedFlow<RecordEvent>()
     val events: SharedFlow<RecordEvent> = _events.asSharedFlow()
 
-    private var currentLoad: Job? = null
+    fun load() {
+        screenModelScope.launch {
+            mutableState.update { it.copy(isLoading = true) }
+            try {
+                val hargaDef = async { repo.getHarga() }
+                val custDef = async { custRepo.getCustomers() }
 
-    fun load(minMs: Long = 0L): Job {
-        currentLoad?.cancel()
-        val job =
-            screenModelScope.launch {
-                _events.emit(RecordEvent.ShowLoading())
-                try {
-                    val elapsed =
-                        kotlin.system.measureTimeMillis {
-                            val hargaDef = async { repo.getHarga() }
-                            val custDef = async { custRepo.getCustomers() }
+                val hargaRes = hargaDef.await()
+                val custRes = custDef.await()
 
-                            val hargaRes = hargaDef.await()
-                            val custRes = custDef.await()
-
-                            hargaRes
-                                .onSuccess { harga ->
-                                    mutableState.update {
-                                        it.copy(
-                                            air = harga.air,
-                                            admin = harga.admin,
-                                        )
-                                    }
-                                }.onFailure { e ->
-                                    _events.emit(
-                                        RecordEvent.ShowSnackbar(
-                                            e.message
-                                                ?: "Data harga layanan belum ada, silakan hubungi admin.",
-                                        ),
-                                    )
-                                }
-
-                            custRes
-                                .onSuccess { list ->
-                                    mutableState.update { it.copy(customers = list) }
-                                }.onFailure { e ->
-                                    _events.emit(
-                                        RecordEvent.ShowSnackbar(
-                                            e.message
-                                                ?: "Belum ada pelanggan yang terdaftar, silakan hubungi admin.",
-                                        ),
-                                    )
-                                }
+                hargaRes
+                    .onSuccess { harga ->
+                        mutableState.update {
+                            it.copy(
+                                air = harga.air,
+                                admin = harga.admin,
+                            )
                         }
-                    val remain = (minMs - elapsed).coerceAtLeast(0L)
-                    if (remain > 0) kotlinx.coroutines.delay(remain)
-                } finally {
-                    mutableState.update { it.copy(isLoading = false) }
-                    _events.emit(RecordEvent.Idle)
-                }
+                    }.onFailure { e ->
+                        _events.emit(
+                            RecordEvent.ShowSnackbar(
+                                e.message
+                                    ?: "Data harga layanan belum ada, silakan hubungi admin.",
+                            ),
+                        )
+                    }
+
+                custRes
+                    .onSuccess { list ->
+                        mutableState.update { it.copy(customers = list) }
+                    }.onFailure { e ->
+                        _events.emit(
+                            RecordEvent.ShowSnackbar(
+                                e.message
+                                    ?: "Belum ada pelanggan yang terdaftar, silakan hubungi admin.",
+                            ),
+                        )
+                    }
+            } finally {
+                mutableState.update { it.copy(isLoading = false) }
             }
-        currentLoad = job
-        return job
+        }
     }
 
     // ------- Pelanggan -------
@@ -154,36 +141,31 @@ class RecordViewModel(
                 val st = state.value
                 if (st.air <= 0L || st.admin <= 0L) {
                     _events.emit(RecordEvent.ShowSnackbar("Data harga layanan belum ada, silakan hubungi admin."))
-                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
                 if (st.selectedCustomerId.isBlank()) {
                     _events.emit(RecordEvent.ShowSnackbar("Pilih pelanggan terlebih dahulu"))
-                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
                 if (image == null || image.isEmpty()) {
                     _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran"))
-                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
                 if (st.meteranText.isBlank()) {
                     _events.emit(RecordEvent.ShowSnackbar("Isi meteran bulan ini"))
-                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
                 val current = st.meteranText.filter(Char::isDigit).toLongOrNull()
                 if (current == null) {
                     _events.emit(RecordEvent.ShowSnackbar("Meteran tidak valid"))
-                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
                 if (current < st.meterLalu.toLong()) {
                     _events.emit(RecordEvent.ShowSnackbar("Meteran bulan ini tidak boleh lebih kecil dari bulan lalu (${st.meterLalu})"))
-                    _events.emit(RecordEvent.Idle)
                     return@launch
                 }
-                _events.emit(RecordEvent.ShowLoading("Menyimpan Data"))
+                mutableState.update { it.copy(loadingMessage = "Menyimpan data..") }
+                mutableState.update { it.copy(isLoading = true) }
                 val fees: Map<String, Long> =
                     st.otherFees
                         .mapNotNull { f -> f.type?.let { it to (f.amount.toLongOrNull() ?: 0L) } }
@@ -209,13 +191,12 @@ class RecordViewModel(
                         statsShared.clearBarChart()
                     }.onFailure { e ->
                         _events.emit(RecordEvent.ShowSnackbar(e.message ?: "Gagal menyimpan"))
-                        _events.emit(RecordEvent.Idle)
                     }
             } catch (t: Throwable) {
                 _events.emit(RecordEvent.ShowSnackbar(t.message ?: "Terjadi kesalahan"))
-                _events.emit(RecordEvent.Idle)
             } finally {
-                mutableState.update { it.copy(isLoading = false) }
+                mutableState.update { it.copy(isLoading = true) }
+                mutableState.update { it.copy(loadingMessage = "") }
             }
         }
     }
@@ -245,6 +226,7 @@ data class OtherFee(
 
 data class RecordState(
     val isLoading: Boolean = false,
+    val loadingMessage: String = "",
     val air: Long = 0L,
     val admin: Long = 0L,
     val customers: List<Customer> = emptyList(),
@@ -286,10 +268,4 @@ sealed interface RecordEvent {
         val url: String,
         val recordId: String,
     ) : RecordEvent
-
-    data class ShowLoading(
-        val message: String = "Memuat Data",
-    ) : RecordEvent
-
-    data object Idle : RecordEvent
 }

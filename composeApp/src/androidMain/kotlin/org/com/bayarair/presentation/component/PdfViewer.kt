@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.viewinterop.AndroidView
-import coil3.Bitmap
 
 @OptIn(ExperimentalMaterialApi::class)
 @SuppressLint("SetJavaScriptEnabled")
@@ -31,6 +30,7 @@ actual fun PdfViewer(url: String, modifier: Modifier) {
             factory = { context ->
                 val swipe = androidx.swiperefreshlayout.widget.SwipeRefreshLayout(context)
                 val web = WebView(context)
+                androidx.core.view.ViewCompat.setNestedScrollingEnabled(web, true)
 
                 swipe.addView(
                     web,
@@ -39,23 +39,26 @@ actual fun PdfViewer(url: String, modifier: Modifier) {
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                 )
-
-                web.setOnScrollChangeListener { _, _, _, _, _ ->
-                    swipe.isEnabled = !web.canScrollVertically(-1)
+                swipe.setOnChildScrollUpCallback { _, _ ->
+                    web.canScrollVertically(-1) || web.scrollY > 0
                 }
 
                 swipe.setOnRefreshListener {
                     isRefreshing = true
-                    isLoading =
-                        true
+                    isLoading = true
                     web.reload()
                 }
 
                 web.settings.javaScriptEnabled = true
                 web.settings.mixedContentMode =
                     android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+
                 web.webViewClient = object : WebViewClient() {
-                    override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                    override fun onPageStarted(
+                        view: WebView?,
+                        url: String?,
+                        favicon: android.graphics.Bitmap?
+                    ) {
                         isLoading = true
                     }
 
@@ -67,7 +70,7 @@ actual fun PdfViewer(url: String, modifier: Modifier) {
                         }
                     }
 
-                    @Suppress("DEPRECATION")
+                    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
                     override fun onReceivedError(
                         view: WebView?,
                         errorCode: Int,

@@ -42,13 +42,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import org.com.bayarair.BuildConfig
 import org.com.bayarair.presentation.component.ConfirmDialog
 import org.com.bayarair.presentation.component.LoadingOverlay
 import org.com.bayarair.presentation.navigation.root
@@ -86,7 +89,7 @@ object ProfileScreen : Screen {
                     Column(
                         modifier =
                             Modifier
-                                .fillMaxSize()
+                                .fillMaxWidth()
                                 .verticalScroll(rememberScrollState())
                                 .padding(top = 50.dp),
                         verticalArrangement = Arrangement.Top,
@@ -179,6 +182,15 @@ object ProfileScreen : Screen {
                             }
                         )
                     }
+                    Text(
+                        text = "Bayar Air v${BuildConfig.APP_VERSION}",
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        fontStyle = FontStyle.Italic,
+                        fontSize = 12.sp
+                    )
                     if (show && dialogType != null) {
                         when (dialogType) {
                             "password" -> {

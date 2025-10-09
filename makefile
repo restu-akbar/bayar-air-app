@@ -13,7 +13,7 @@ install:
 	$(GRADLEW) installDebug 
 
 apk:
-	$(GRADLEW) assembleDebug 
+	$(GRADLEW) :composeApp:bundleRelease :composeApp:renameArtifacts 
 
 clean:
 	$(GRADLEW) clean

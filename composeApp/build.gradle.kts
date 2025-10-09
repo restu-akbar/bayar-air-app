@@ -1,5 +1,8 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.Copy
+
+import java.util.Locale
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -9,6 +12,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.room)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.buildConfig)
 }
 
 kotlin {
@@ -105,7 +109,7 @@ android {
                 .get()
                 .toInt()
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
     }
 
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
@@ -116,6 +120,45 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
+
+val renameArtifacts by tasks.register<Copy>("renameArtifacts") {
+    val vName = android.defaultConfig.versionName ?: "0.0.0"
+
+    from(layout.buildDirectory.dir("outputs/apk")) { include("**/*.apk") }
+    from(layout.buildDirectory.dir("outputs/bundle")) { include("**/*.aab") }
+
+    into(layout.buildDirectory.dir("dist"))
+
+    rename { fileName ->
+        when {
+            fileName.endsWith(".apk") -> "BayarAir-v${vName}.apk"
+            fileName.endsWith(".aab") -> "BayarAir-v${vName}.aab"
+            else -> fileName
+        }
+    }
+}
+
+tasks.configureEach {
+    when (name) {
+        "assembleRelease", "assemble" -> finalizedBy(renameArtifacts)
+        "bundleRelease", "bundle" -> finalizedBy(renameArtifacts)
+    }
+}
+
+buildConfig {
+    packageName("org.com.bayarair")
+
+    useKotlinOutput {
+        topLevelConstants = false
+        internalVisibility = false
+    }
+
+    val vName = android.defaultConfig.versionName ?: "0.0.0"
+    val vCode = android.defaultConfig.versionCode ?: 1
+
+    buildConfigField("String", "APP_VERSION", "\"$vName\"")
+    buildConfigField("Int", "APP_VERSION_CODE", "$vCode")
 }
 
 dependencies {
