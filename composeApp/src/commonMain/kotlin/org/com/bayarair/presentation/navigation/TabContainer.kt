@@ -76,7 +76,7 @@ data class TabContainer(
 ) : Screen {
     @Composable
     override fun Content() {
-        TabNavigator(HomeTab) { tabNavigator ->
+        TabNavigator(ProfileTab) { tabNavigator ->
             val behavior = rememberBottomBarScrollBehavior()
             val prevTabKey = rememberSaveable { mutableStateOf(HomeTab.key) }
             val snackbarHost = remember { SnackbarHostState() }

@@ -170,7 +170,7 @@ object ProfileScreen : Screen {
                         ProfileMenuCard(
                             icon = iconMap["faq"] ?: Icons.AutoMirrored.Filled.HelpCenter,
                             text = "FAQ",
-                            onClick = { /* navigate ke FAQ */ }
+                            onClick = { rootNav.push(FaqScreen) }
                         )
 
                         ProfileMenuCard(

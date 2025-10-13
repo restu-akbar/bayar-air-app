@@ -86,6 +86,7 @@ import org.com.bayarair.platform.PickResult
 import org.com.bayarair.platform.decodeImage
 import org.com.bayarair.platform.rememberImageGateway
 import org.com.bayarair.presentation.component.LoadingOverlay
+import org.com.bayarair.presentation.component.StickyScaffold
 import org.com.bayarair.presentation.navigation.HomeTab
 import org.com.bayarair.presentation.navigation.LocalPreviousTabKey
 import org.com.bayarair.presentation.navigation.ProfileTab
@@ -156,7 +157,7 @@ object RecordScreen : Screen {
         val formBg = MaterialTheme.colorScheme.primaryContainer
         val textOnBg = MaterialTheme.colorScheme.onBackground
 
-        StickyScaffold(bgBlue = bgBlue, textOnBg = textOnBg, snackbarHostState)
+        StickyScaffold(bg = bgBlue, textOnBg = textOnBg, snackbarHostState)
         {
             if (!state.isLoading) {
                 Box(
@@ -554,61 +555,6 @@ object RecordScreen : Screen {
     }
 }
 
-@Composable
-fun StickyScaffold(
-    bgBlue: Color,
-    textOnBg: Color,
-    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
-    content: @Composable () -> Unit
-) {
-    val tabNavigator = LocalTabNavigator.current
-    val prevKey = LocalPreviousTabKey.current.value
-
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = bgBlue,
-        topBar = {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            tabNavigator.current = when (prevKey) {
-                                HomeTab.key -> HomeTab
-                                ProfileTab.key -> ProfileTab
-                                else -> HomeTab
-                            }
-                        },
-                        modifier = Modifier
-                            .padding(start = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
-                            contentDescription = "Kembali",
-                            tint = textOnBg,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = bgBlue,
-                    scrolledContainerColor = bgBlue,
-                    navigationIconContentColor = textOnBg
-                ),
-                scrollBehavior = scrollBehavior,
-                windowInsets = WindowInsets(0)
-            )
-        },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
-    ) { innerPadding ->
-        Box(Modifier.padding(innerPadding)) {
-            content()
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

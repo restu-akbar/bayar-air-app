@@ -4,11 +4,13 @@ import io.ktor.client.HttpClient
 import org.com.bayarair.core.AppEvents
 import org.com.bayarair.data.repository.AuthRepository
 import org.com.bayarair.data.repository.CustomerRepository
+import org.com.bayarair.data.repository.FaqRepository
 import org.com.bayarair.data.repository.ProfileRepository
 import org.com.bayarair.data.repository.RecordRepository
 import org.com.bayarair.data.token.TokenHandler
 import org.com.bayarair.platform.createHttpClient
 import org.com.bayarair.presentation.viewmodel.AuthViewModel
+import org.com.bayarair.presentation.viewmodel.FaqViewModel
 import org.com.bayarair.presentation.viewmodel.HomeViewModel
 import org.com.bayarair.presentation.viewmodel.ProfileViewModel
 import org.com.bayarair.presentation.viewmodel.RecordDetailViewModel
@@ -42,6 +44,7 @@ val commonModule =
         single<RecordRepository> { RecordRepository(get<HttpClient>()) }
         single<ProfileRepository> { ProfileRepository(get<HttpClient>()) }
         single<CustomerRepository> { CustomerRepository(get<HttpClient>()) }
+        single<FaqRepository> { FaqRepository(get<HttpClient>()) }
 
         // viewmodel
         factory<AuthViewModel> {
@@ -78,6 +81,12 @@ val commonModule =
                 get<ProfileRepository>(),
                 get<AppEvents>(),
                 get<UserShared>(),
+            )
+        }
+        factory<FaqViewModel> {
+            FaqViewModel(
+                get<FaqRepository>(),
+                get<AppEvents>()
             )
         }
         // data shared
