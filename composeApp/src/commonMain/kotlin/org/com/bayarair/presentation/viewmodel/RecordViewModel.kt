@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import org.com.bayarair.data.model.Customer
 import org.com.bayarair.data.repository.CustomerRepository
 import org.com.bayarair.data.repository.RecordRepository
+import org.com.bayarair.platform.compressImage
 
 class RecordViewModel(
     private val repo: RecordRepository,
@@ -151,6 +152,13 @@ class RecordViewModel(
                     _events.emit(RecordEvent.ShowSnackbar("Ambil foto meteran"))
                     return@launch
                 }
+                val compressed: ByteArray =
+                    compressImage(
+                        bytes = image,
+                        maxWidth = 1280,
+                        maxHeight = 1280,
+                        quality = 80,
+                    )
                 if (st.meteranText.isBlank()) {
                     _events.emit(RecordEvent.ShowSnackbar("Isi meteran bulan ini"))
                     return@launch
@@ -175,7 +183,7 @@ class RecordViewModel(
                     .saveRecord(
                         customerId = st.selectedCustomerId,
                         meter = current.toInt(),
-                        evidence = image,
+                        evidence = compressed,
                         otherFees = fees,
                     ).onSuccess { env ->
                         _events.emit(RecordEvent.ShowSnackbar(env.message))

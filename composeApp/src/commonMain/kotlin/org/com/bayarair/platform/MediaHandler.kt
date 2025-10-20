@@ -20,3 +20,10 @@ interface ImageGateway {
 expect fun rememberImageGateway(): ImageGateway
 
 expect fun decodeImage(bytes: ByteArray): ImageBitmap
+
+expect fun compressImage(
+    bytes: ByteArray,
+    maxWidth: Int? = null,
+    maxHeight: Int? = null,
+    quality: Int = 80,
+): ByteArray

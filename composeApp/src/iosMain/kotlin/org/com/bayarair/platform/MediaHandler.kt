@@ -4,12 +4,17 @@ package org.com.bayarair.platform
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.suspendCancellableCoroutine
-import platform.Foundation.NSData
+import platform.CoreGraphics.CGRectMake
+import platform.CoreGraphics.CGSizeMake
+import platform.Foundation.*
 import platform.MobileCoreServices.UTTypeImage
 import platform.PhotosUI.*
 import platform.UIKit.*
 import kotlin.coroutines.resume
+import kotlin.math.min
 
 private fun topController(): UIViewController {
     val keyWindow = UIApplication.sharedApplication.keyWindow
@@ -122,3 +127,57 @@ actual fun rememberImageGateway(): ImageGateway = remember { IosImageGateway() }
 
 actual fun decodeImage(bytes: ByteArray): ImageBitmap =
     org.jetbrains.skia.Image.makeFromEncoded(bytes).asImageBitmap()
+
+
+private fun ByteArray.toNSData(): NSData = this.usePinned {
+    NSData.create(bytes = it.addressOf(0), length = this.size.toULong())
+}
+
+private fun NSData.toByteArray(): ByteArray {
+    val length = this.length.toInt()
+    val bytes = ByteArray(length)
+    bytes.usePinned {
+        memScoped {
+            memcpy(it.addressOf(0), this@toByteArray.bytes, length.convert())
+        }
+    }
+    return bytes
+}
+
+actual fun compressImage(
+    bytes: ByteArray,
+    maxWidth: Int?,
+    maxHeight: Int?,
+    quality: Int
+): ByteArray {
+    val data = bytes.toNSData()
+    val uiImage = UIImage(data = data) ?: return bytes
+
+    val srcW = uiImage.size.useContents { width }
+    val srcH = uiImage.size.useContents { height }
+
+    val (targetW, targetH) = if (maxWidth != null && maxHeight != null && srcW > 0 && srcH > 0) {
+        val scale = min(
+            maxWidth.toDouble() / srcW,
+            maxHeight.toDouble() / srcH
+        ).coerceAtMost(1.0)
+        Pair((srcW * scale), (srcH * scale))
+    } else Pair(srcW, srcH)
+
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(targetW, targetH), false, 1.0)
+    uiImage.drawInRect(CGRectMake(0.0, 0.0, targetW, targetH))
+    val resized = UIGraphicsGetImageFromCurrentImageContext()
+    UIGraphicsEndImageContext()
+
+    val outImage = resized ?: uiImage
+
+    val q = (quality.coerceIn(0, 100).toDouble() / 100.0)
+    val jpegData = outImage.JPEGRepresentation(q)
+
+    return (jpegData ?: data).toByteArray()
+}
+
+private fun UIImage.JPEGRepresentation(quality: Double): NSData? {
+    return UIImageJPEGRepresentation(this, quality)
+}
+
