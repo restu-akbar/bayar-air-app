@@ -108,7 +108,7 @@ android {
             libs.versions.android.targetSdk
                 .get()
                 .toInt()
-        versionCode = 1
+        versionCode = 6
         versionName = "1.0.0"
     }
 
