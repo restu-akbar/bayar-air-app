@@ -25,6 +25,7 @@ import kotlin.math.max
 import kotlin.math.min
 
 private class AndroidImageGateway(
+    private val activity: ComponentActivity,
     private val context: Context,
     private val launcherTakePicture: (Uri, (Boolean) -> Unit) -> Unit,
     private val launcherGetContent: ((Uri?) -> Unit) -> Unit,
