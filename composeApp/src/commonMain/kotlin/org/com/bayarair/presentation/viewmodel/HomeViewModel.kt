@@ -6,8 +6,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.com.bayarair.core.AppEvent
 import org.com.bayarair.core.AppEvents
-import org.com.bayarair.data.dto.BarChart
-import org.com.bayarair.data.dto.PieChart
 import org.com.bayarair.data.dto.isUnauthorized
 import org.com.bayarair.data.repository.CustomerRepository
 import org.com.bayarair.data.repository.RecordRepository
@@ -22,17 +20,12 @@ class HomeViewModel(
     fun init(
         force: Boolean,
         month: Int,
-        isPieChart: Boolean,
-        year: Int = 2025,
     ) {
         if (!force) return
         mutableState.update { it.copy(loading = true) }
         getTotalCustomers(force)
-        if (isPieChart) {
-            getPieChartData(force, month)
-        } else {
-            getBarChartData(force, year)
-        }
+        getPieChartData(force, month)
+        mutableState.update { it.copy(loading = false) }
     }
 
     fun getTotalCustomers(force: Boolean = false) {

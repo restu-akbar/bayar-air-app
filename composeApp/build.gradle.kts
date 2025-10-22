@@ -1,7 +1,6 @@
+import org.gradle.api.tasks.Copy
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-import org.gradle.api.tasks.Copy
-
 import java.util.Locale
 
 plugins {
@@ -132,8 +131,8 @@ val renameArtifacts by tasks.register<Copy>("renameArtifacts") {
 
     rename { fileName ->
         when {
-            fileName.endsWith(".apk") -> "BayarAir-v${vName}.apk"
-            fileName.endsWith(".aab") -> "BayarAir-v${vName}.aab"
+            fileName.endsWith(".apk") -> "BayarAir-v$vName.apk"
+            fileName.endsWith(".aab") -> "BayarAir-v$vName.aab"
             else -> fileName
         }
     }
@@ -144,6 +143,10 @@ tasks.configureEach {
         "assembleRelease", "assemble" -> finalizedBy(renameArtifacts)
         "bundleRelease", "bundle" -> finalizedBy(renameArtifacts)
     }
+}
+
+tasks.register("buildAllArtifacts") {
+    dependsOn("assembleRelease", "bundleRelease")
 }
 
 buildConfig {

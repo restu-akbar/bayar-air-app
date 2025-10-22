@@ -15,7 +15,9 @@ import org.com.bayarair.data.dto.BarChart
 import org.com.bayarair.data.dto.BaseResponse
 import org.com.bayarair.data.dto.HargaData
 import org.com.bayarair.data.dto.MeterRecord
+import org.com.bayarair.data.dto.MeterRecordDto
 import org.com.bayarair.data.dto.PieChart
+import org.com.bayarair.data.dto.toDomain
 import org.com.bayarair.data.dto.unwrapFlexible
 import org.com.bayarair.data.remote.BASE_URL
 
@@ -28,7 +30,7 @@ class RecordRepository(
                 client.get("$BASE_URL/pencatatan") {
                     contentType(ContentType.Application.Json)
                 }
-            res.unwrapFlexible<List<MeterRecord>>().data!!
+            res.unwrapFlexible<List<MeterRecordDto>>().data!!.map { it.toDomain() }
         }
 
     suspend fun getHarga(): Result<HargaData> =
@@ -44,31 +46,33 @@ class RecordRepository(
         otherFees: Map<String, Long?>,
     ): Result<BaseResponse<MeterRecord>> =
         runCatching {
-            client
-                .submitFormWithBinaryData(
+            val respDto: BaseResponse<MeterRecordDto> =
+                client.submitFormWithBinaryData(
                     url = "$BASE_URL/pencatatan",
-                    formData =
-                        formData {
-                            append("customer_id", customerId)
-                            append("meter", meter.toString())
+                    formData = formData {
+                        append("customer_id", customerId)
+                        append("meter", meter.toString())
 
-                            otherFees["Denda"]?.let { append("fine", it.toString()) }
-                            otherFees["Materai"]?.let { append("duty_stamp", it.toString()) }
-                            otherFees["Retribusi"]?.let { append("retribution_fee", it.toString()) }
+                        otherFees["Denda"]?.let { append("fine", it.toString()) }
+                        otherFees["Materai"]?.let { append("duty_stamp", it.toString()) }
+                        otherFees["Retribusi"]?.let { append("retribution_fee", it.toString()) }
 
-                            append(
-                                "evidence",
-                                evidence,
-                                Headers.build {
-                                    append(HttpHeaders.ContentType, "image/jpeg")
-                                    append(
-                                        HttpHeaders.ContentDisposition,
-                                        "filename=\"meter.jpg\"",
-                                    )
-                                },
-                            )
-                        },
-                ).unwrapFlexible<MeterRecord>()
+                        append(
+                            "evidence",
+                            evidence,
+                            Headers.build {
+                                append(HttpHeaders.ContentType, "image/jpeg")
+                                append(HttpHeaders.ContentDisposition, "filename=\"meter.jpg\"")
+                            }
+                        )
+                    }
+                ).unwrapFlexible<MeterRecordDto>()
+
+            BaseResponse(
+                status = respDto.status,
+                message = respDto.message,
+                data = respDto.data?.toDomain()
+            )
         }
 
     suspend fun updateRecord(recordId: String): Result<BaseResponse<MeterRecord>> =

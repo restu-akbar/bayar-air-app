@@ -25,20 +25,23 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QueryStats
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -49,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
@@ -153,9 +157,7 @@ object HomeScreen : Screen {
         val globalPtr = rememberPullToRefreshState()
 
         LaunchedEffect(Unit) {
-            if (pieChart == null || barChart == null) {
-                vm.init(month = currentMonth(), force = true, isPieChart = state.switcher)
-            }
+            vm.init(true, currentMonth())
             vmProfile.getUser()
         }
         LaunchedEffect(state.switcher) {
@@ -1028,12 +1030,17 @@ fun HistorySection(
     val ptrState = rememberPullToRefreshState()
 
     var query by rememberSaveable { mutableStateOf("") }
-    var filterExpanded by remember { mutableStateOf(false) }
     var payFilter by rememberSaveable { mutableStateOf(PayFilter.ALL) }
+    var startDateMillis by rememberSaveable { mutableStateOf<Long?>(null) }
+    var endDateMillis by rememberSaveable { mutableStateOf<Long?>(null) }
+
+
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val scheme = MaterialTheme.colorScheme
 
-    val filteredRecords = remember(records, query, payFilter) {
+    val filteredRecords = remember(records, query, payFilter, startDateMillis, endDateMillis) {
         val q = query.trim()
         records.asSequence()
             .filter { r ->
@@ -1049,8 +1056,15 @@ fun HistorySection(
                     PayFilter.BELUM -> r.status == "belum_bayar"
                 }
             }
+            .filter { r ->
+                val t = r.createdAt
+                val afterStart = startDateMillis?.let { t >= it } ?: true
+                val beforeEnd = endDateMillis?.let { t <= it } ?: true
+                afterStart && beforeEnd
+            }
             .toList()
     }
+
 
     PullToRefreshBox(isRefreshing = isRefreshing, onRefresh = onRefresh, state = ptrState) {
         LazyColumn(
@@ -1059,107 +1073,104 @@ fun HistorySection(
             horizontalAlignment = Alignment.Start,
             contentPadding = PaddingValues(bottom = 12.dp)
         ) {
+
             item {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(vertical = 8.dp)
                 ) {
                     val shape = RoundedCornerShape(6.dp)
                     val searchHeight = 48.dp
+
                     Box(
                         modifier = Modifier
-                            .weight(1f)
+                            .fillMaxWidth()
                             .height(searchHeight)
                             .clip(shape)
                             .background(scheme.primaryContainer)
                             .padding(horizontal = 12.dp)
                     ) {
-                        var focused by remember { mutableStateOf(false) }
-                        BasicTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                color = scheme.onPrimaryContainer
-                            ),
-                            cursorBrush = SolidColor(scheme.onPrimaryContainer),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .onFocusChanged { focused = it.isFocused }
-                                .padding(vertical = 12.dp)
-                        ) { innerTextField ->
-                            Box(Modifier.fillMaxWidth()) {
-                                if (query.isEmpty() && !focused) {
-                                    Text(
-                                        "Cari nama pelanggan",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = scheme.onPrimaryContainer.copy(alpha = 0.7f)
-                                    )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            var focused by remember { mutableStateOf(false) }
+
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search Icon",
+                                tint = scheme.onPrimaryContainer.copy(alpha = 0.7f)
+                            )
+                            Spacer(Modifier.width(8.dp))
+
+                            BasicTextField(
+                                value = query,
+                                onValueChange = { query = it },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                    color = scheme.onPrimaryContainer
+                                ),
+                                cursorBrush = SolidColor(scheme.onPrimaryContainer),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = searchHeight)
+                                    .onFocusChanged { focused = it.isFocused }
+                                    .padding(vertical = 12.dp)
+                            ) { innerTextField ->
+                                Box(Modifier.fillMaxWidth()) {
+                                    if (query.isEmpty() && !focused) {
+                                        Text(
+                                            "Cari nama pelanggan",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = scheme.onPrimaryContainer.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                    innerTextField()
                                 }
-                                innerTextField()
                             }
                         }
                     }
+                }
+            }
 
-                    Spacer(Modifier.width(8.dp))
-
-                    Box {
-                        FilledIconButton(
-                            onClick = { filterExpanded = true },
-                            modifier = Modifier
-                                .height(searchHeight)
-                                .width(searchHeight)
-                                .clip(RoundedCornerShape(6.dp)),
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = scheme.primaryContainer,
-                                contentColor = scheme.onPrimaryContainer
-                            ),
-                            shape = RoundedCornerShape(6.dp)
+            item {
+                Surface(
+                    shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp),
+                    tonalElevation = 2.dp,
+                    shadowElevation = 2.dp,
+                    color = scheme.primaryContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    Column(Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filter status")
-                        }
+                            Text(
+                                "History Pencatatan",
+                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+                                fontWeight = FontWeight.Bold,
+                                color = scheme.onPrimaryContainer
+                            )
 
-                        DropdownMenu(
-                            expanded = filterExpanded,
-                            onDismissRequest = { filterExpanded = false },
-                            modifier = Modifier.background(
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
-                            )
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Semua") },
-                                onClick = { payFilter = PayFilter.ALL; filterExpanded = false },
-                                leadingIcon = {
-                                    if (payFilter == PayFilter.ALL) Icon(
-                                        Icons.Default.Check,
-                                        null
-                                    )
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Sudah Bayar") },
-                                onClick = { payFilter = PayFilter.SUDAH; filterExpanded = false },
-                                leadingIcon = {
-                                    if (payFilter == PayFilter.SUDAH) Icon(
-                                        Icons.Default.Check,
-                                        null
-                                    )
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Belum Bayar") },
-                                onClick = { payFilter = PayFilter.BELUM; filterExpanded = false },
-                                leadingIcon = {
-                                    if (payFilter == PayFilter.BELUM) Icon(
-                                        Icons.Default.Check,
-                                        null
-                                    )
-                                }
-                            )
+                            IconButton(
+                                onClick = { showFilterSheet = true },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Tune,
+                                    contentDescription = "Filter",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+
                         }
+                        Spacer(Modifier.height(8.dp))
+                        HorizontalDivider(thickness = 0.6.dp, color = scheme.outlineVariant)
                     }
                 }
             }
@@ -1168,60 +1179,42 @@ fun HistorySection(
                 item {
                     ElevatedCard(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .fillParentMaxHeight(),
-                        shape = RoundedCornerShape(6.dp),
+                            .fillMaxWidth(),
+                        shape = RoundedCornerShape(
+                            topStart = 0.dp, topEnd = 0.dp,
+                            bottomStart = 6.dp, bottomEnd = 6.dp
+                        ),
                         colors = CardDefaults.elevatedCardColors(containerColor = scheme.primaryContainer)
                     ) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Text(
-                                "Belum ada history",
+                                "Belum ada data",
                                 color = Color.Gray,
                                 style = MaterialTheme.typography.bodyMedium
                             )
                         }
                     }
+
                 }
             } else {
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp),
-                        tonalElevation = 2.dp,
-                        shadowElevation = 2.dp,
-                        color = scheme.primaryContainer,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
-                    ) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(
-                                "History Pencatatan",
-                                style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            // Divider pertama agar konten di bawah terasa nyatu
-                            HorizontalDivider(thickness = 0.6.dp, color = scheme.outlineVariant)
-                        }
-                    }
-                }
-
                 itemsIndexed(filteredRecords, key = { _, it -> it.id }) { index, record ->
                     val isLast = index == filteredRecords.lastIndex
-
-                    val shape = when {
-                        isLast -> RoundedCornerShape(bottomStart = 6.dp, bottomEnd = 6.dp)
-                        else -> RectangleShape
-                    }
+                    val shape = if (isLast) RoundedCornerShape(
+                        bottomStart = 6.dp,
+                        bottomEnd = 6.dp
+                    ) else RectangleShape
 
                     Surface(
                         shape = shape,
                         tonalElevation = 2.dp,
                         shadowElevation = 2.dp,
                         color = scheme.primaryContainer,
-                        modifier = Modifier
-                            .fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         val interaction = remember { MutableInteractionSource() }
                         val isPressed by interaction.collectIsPressedAsState()
@@ -1243,12 +1236,10 @@ fun HistorySection(
                                 .clip(shape)
                                 .drawWithContent {
                                     drawContent()
-                                    if (overlayAlpha > 0f) {
-                                        drawRect(
-                                            color = scheme.onPrimaryContainer,
-                                            alpha = overlayAlpha
-                                        )
-                                    }
+                                    if (overlayAlpha > 0f) drawRect(
+                                        color = scheme.onPrimaryContainer,
+                                        alpha = overlayAlpha
+                                    )
                                 }
                                 .clickable(
                                     interactionSource = interaction,
@@ -1261,7 +1252,11 @@ fun HistorySection(
                                         scope.launch {
                                             delay(100)
                                             navigator.root().push(
-                                                RecordDetailScreen(record.receipt, record.id, true)
+                                                RecordDetailScreen(
+                                                    record.receipt,
+                                                    record.id,
+                                                    true
+                                                )
                                             )
                                         }
                                     }
@@ -1270,34 +1265,51 @@ fun HistorySection(
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = record.customer.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = "${record.meter} m³",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1
-                                )
-                            }
-                            Spacer(Modifier.height(2.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.Top
-                            ) {
-                                Text(
-                                    text = record.customer.address,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = scheme.onSurfaceVariant,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(end = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(scheme.surfaceVariant),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "Customer",
+                                            tint = scheme.onSurfaceVariant,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    Spacer(Modifier.width(8.dp))
+
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = record.customer.name,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            text = record.customer.address,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = scheme.onSurfaceVariant,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
 
                                 val (statusLabel, bgColor, fgColor) = when (record.status) {
                                     "sudah_bayar" -> Triple(
@@ -1318,26 +1330,390 @@ fun HistorySection(
                                         scheme.onSurfaceVariant
                                     )
                                 }
-                                Spacer(Modifier.width(8.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(bgColor)
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
-                                        text = statusLabel,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = fgColor,
+                                        text = "${record.meter} m³",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
                                         maxLines = 1
                                     )
+
+                                    Spacer(Modifier.height(6.dp))
+
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(bgColor)
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = statusLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = fgColor,
+                                            maxLines = 1
+                                        )
+                                    }
+
+                                    Spacer(Modifier.height(6.dp))
+
+                                    Text(
+                                        text = formatCreatedAt(record.createdAt),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = scheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
+
+                                Spacer(Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = "Detail",
+                                    tint = scheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         }
+
                     }
                 }
             }
         }
     }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    if (showFilterSheet) {
+
+        var tempPayFilter by remember { mutableStateOf(payFilter) }
+        var tempStartDateMillis by remember { mutableStateOf(startDateMillis) }
+        var tempEndDateMillis by remember { mutableStateOf(endDateMillis) }
+
+        LaunchedEffect(showFilterSheet) {
+            if (showFilterSheet) {
+                tempPayFilter = payFilter
+                tempStartDateMillis = startDateMillis
+                tempEndDateMillis = endDateMillis
+            }
+        }
+
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                Modifier
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    "Filter Berdasarkan",
+                    style = MaterialTheme.typography.titleSmall, color = Color.Gray
+                )
+                Spacer(Modifier.height(5.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Status Pembayaran",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    TextButton(onClick = { tempPayFilter = PayFilter.ALL }) {
+                        Text("Reset")
+                    }
+                }
+
+                var statusExpanded by remember { mutableStateOf(false) }
+                val statusLabel = when (tempPayFilter) {
+                    PayFilter.ALL -> "Semua"
+                    PayFilter.SUDAH -> "Sudah Bayar"
+                    PayFilter.BELUM -> "Belum Bayar"
+                }
+                val arrowRotation by animateFloatAsState(
+                    targetValue = if (statusExpanded) 180f else 0f, label = "arrowRotation"
+                )
+
+                ExposedDropdownMenuBox(
+                    expanded = statusExpanded,
+                    onExpandedChange = { statusExpanded = !statusExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = statusLabel,
+                        onValueChange = {},
+                        readOnly = true,
+                        prefix = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            when (tempPayFilter) {
+                                                PayFilter.SUDAH -> Color(0xFF4CAF50)
+                                                PayFilter.BELUM -> Color(0xFFF44336)
+                                                PayFilter.ALL -> Color.Transparent
+                                            }
+                                        )
+                                )
+                                Spacer(Modifier.width(6.dp))
+                            }
+                        },
+                        trailingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 6.dp, top = 6.dp, bottom = 6.dp)
+                                    .sizeIn(minWidth = 36.dp, minHeight = 36.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Dropdown Arrow",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.rotate(arrowRotation)
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .menuAnchor(MenuAnchorType.PrimaryEditable, true)
+                            .fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(15.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                                alpha = 0.5f
+                            ),
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                                alpha = 0.5f
+                            ),
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    )
+
+                    ExposedDropdownMenu(
+                        expanded = statusExpanded,
+                        onDismissRequest = { statusExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Semua") },
+                            onClick = { tempPayFilter = PayFilter.ALL; statusExpanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Sudah Bayar") },
+                            onClick = { tempPayFilter = PayFilter.SUDAH; statusExpanded = false }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Belum Bayar") },
+                            onClick = { tempPayFilter = PayFilter.BELUM; statusExpanded = false }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Rentang Tanggal",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    TextButton(onClick = {
+                        tempStartDateMillis = null
+                        tempEndDateMillis = null
+                    }) {
+                        Text("Reset")
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Dari",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Gray
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        DateDropdown(
+                            selectedMillis = tempStartDateMillis,
+                            onSelect = { tempStartDateMillis = it },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "Sampai",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Gray
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        DateDropdown(
+                            selectedMillis = tempEndDateMillis,
+                            onSelect = { tempEndDateMillis = it },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+
+                    TextButton(
+                        onClick = {
+                            tempPayFilter = PayFilter.ALL
+                            tempStartDateMillis = null
+                            tempEndDateMillis = null
+                        },
+                        shape = RoundedCornerShape(6.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        contentPadding = PaddingValues(
+                            horizontal = 20.dp,
+                            vertical = 10.dp
+                        ),
+                        modifier = Modifier
+                    ) {
+                        Text("Reset Semua")
+                    }
+                    Spacer(Modifier.width(8.dp))
+
+                    Button(
+                        onClick = {
+                            var s = tempStartDateMillis
+                            var e = tempEndDateMillis
+                            if (s != null && e != null && s > e) {
+                                val tmp = s; s = e; e = tmp
+                            }
+                            payFilter = tempPayFilter
+                            startDateMillis = s
+                            endDateMillis = e
+                            showFilterSheet = false
+                        },
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+                    ) {
+                        Text("Terapkan filter")
+                    }
+
+                }
+
+                Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DateDropdown(
+    selectedMillis: Long?,
+    onSelect: (Long?) -> Unit,
+    modifier: Modifier = Modifier,
+    dateValidator: (Long) -> Boolean = { true }
+) {
+    var showPicker by remember { mutableStateOf(false) }
+
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedMillis,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                dateValidator(utcTimeMillis)
+        }
+    )
+
+    val display = selectedMillis?.let { millisToDate(it) } ?: ""
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .clickable { showPicker = true }
+    ) {
+        OutlinedTextField(
+            value = display,
+            onValueChange = {},
+            label = { Text("Tanggal") },
+            readOnly = true,
+            enabled = false,
+            trailingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(15.dp)
+        )
+    }
+
+    if (showPicker) {
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    onSelect(datePickerState.selectedDateMillis)
+                    showPicker = false
+                }) { Text("Pilih") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    onSelect(null)
+                    showPicker = false
+                }) { Text("Kosongkan") }
+            }
+        ) {
+            DatePicker(
+                state = datePickerState,
+                title = null,
+                showModeToggle = false
+            )
+        }
+    }
+}
+
+
+@Composable
+private fun millisToDate(millis: Long): String {
+    val df = remember {
+        java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.forLanguageTag("id-ID"))
+    }
+    return df.format(java.util.Date(millis))
+}
+
+@Composable
+fun formatCreatedAt(timestamp: Long): String {
+    val sdf = remember {
+        java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.forLanguageTag("id-ID"))
+    }
+    return sdf.format(java.util.Date(timestamp))
 }

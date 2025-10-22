@@ -95,7 +95,7 @@ object EditProfileScreen : Screen {
                 TopAppBar(
                     title = { Text("") },
                     navigationIcon = {
-                        IconButton(onClick = { rootNav.pop() }) {
+                        IconButton(onClick = { rootNav.popUntil { it is ProfileScreen } }) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Kembali",

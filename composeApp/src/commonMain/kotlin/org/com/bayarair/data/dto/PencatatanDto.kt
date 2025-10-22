@@ -2,6 +2,8 @@ package org.com.bayarair.data.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 @Serializable
 data class PelangganDto(
@@ -21,10 +23,33 @@ data class HargaData(
 )
 
 @Serializable
+data class MeterRecordDto(
+    val id: String,
+    val meter: Int,
+    val receipt: String,
+    val status: String,
+    @SerialName("created_at") val createdAt: String,
+    val customer: PelangganDto,
+)
+
+@Serializable
 data class MeterRecord(
     val id: String,
     val meter: Int,
     val receipt: String,
     val status: String,
-    val customer: PelangganDto
+    val createdAt: Long,
+    val customer: PelangganDto,
 )
+
+@OptIn(ExperimentalTime::class)
+fun MeterRecordDto.toDomain(): MeterRecord =
+    MeterRecord(
+        id = id,
+        meter = meter,
+        receipt = receipt,
+        status = status,
+        createdAt = Instant.parse(createdAt).toEpochMilliseconds(),
+        customer = customer,
+    )
+

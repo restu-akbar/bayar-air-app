@@ -203,7 +203,7 @@ class RecordViewModel(
             } catch (t: Throwable) {
                 _events.emit(RecordEvent.ShowSnackbar(t.message ?: "Terjadi kesalahan"))
             } finally {
-                mutableState.update { it.copy(isLoading = true) }
+                mutableState.update { it.copy(isLoading = false) }
                 mutableState.update { it.copy(loadingMessage = "") }
             }
         }

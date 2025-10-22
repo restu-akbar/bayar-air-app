@@ -1,4 +1,3 @@
-# Gunakan gradlew wrapper
 GRADLEW := ./gradlew
 PKG ?= org.com.bayarair
 .PHONY: build clean test run
@@ -13,7 +12,7 @@ install:
 	$(GRADLEW) installDebug 
 
 apk:
-	$(GRADLEW) :composeApp:bundleRelease :composeApp:renameArtifacts 
+	$(GRADLEW) :composeApp:buildAllArtifacts :composeApp:renameArtifacts 
 
 clean:
 	$(GRADLEW) clean

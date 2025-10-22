@@ -106,7 +106,7 @@ object FaqScreen : Screen {
                     title = { Text("") },
                     navigationIcon = {
                         Box(Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-                            IconButton(onClick = { rootNav.pop() }) {
+                            IconButton(onClick = { rootNav.popUntil { it is ProfileScreen } }) {
                                 Icon(Icons.Default.Close, contentDescription = "Tutup")
                             }
                         }
